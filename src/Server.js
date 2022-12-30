@@ -3,15 +3,22 @@ const WebSocket = require("ws")
 
 const Client = require("./Client.js");
 const RoomSettings = require("./RoomSettings.js");
+const express = require('express');
+const path = require("path")
 
 class Server extends EventEmitter {
     constructor(config) {
         super();
         EventEmitter.call(this);
+        this.expressApp = express();
+        this.httpServer = this.expressApp.listen(config.port);
+
         this.wss = new WebSocket.Server({
-            port: config.port,
-            backlog: 100
+            backlog: 100,
+            server : this.httpServer
         });
+        this.expressApp.use(express.static(path.join(__dirname, "../client/client")));
+
         this.connectionid = 0;
         this.connections = new Map();
         this.roomlisteners = new Map();

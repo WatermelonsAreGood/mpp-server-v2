@@ -1,9 +1,10 @@
 module.exports = {
-    port: "8082",
+    port: "8080",
     motd: "You agree to read this message.",
     salt: "boppity",
     defaultUsername: "Anonymous",
     adminpass: "adminpass",
+    xforwardedtrust: false,
     defaultRoomSettings: {
         color: "#3b5054",
         color2: "#001014",

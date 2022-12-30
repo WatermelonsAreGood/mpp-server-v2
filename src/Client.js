@@ -4,6 +4,8 @@ const WebSocket = require("ws")
 const Room = require("./Room.js");
 const Quota = require ("./Quota.js");
 const quotas = require('../Quotas');
+const config = require("../config.js")
+
 const RateLimit = require('./Ratelimit.js').RateLimit;
 const RateLimitChain = require('./Ratelimit.js').RateLimitChain;
 
@@ -22,7 +24,11 @@ class Client extends EventEmitter {
         this.quotas = quotas;
         this.ws = ws;
         this.req = req;
-        this.ip = (req.connection.remoteAddress).replace("::ffff:", "");
+        if(config.xforwardedtrust) {
+            this.ip = req.headers['x-forwarded-for'];
+        } else {
+            this.ip = (req.connection.remoteAddress).replace("::ffff:", "");
+        }
         this.authenicated = false;
         this.bindEventListeners();
         require('./Message.js')(this);
