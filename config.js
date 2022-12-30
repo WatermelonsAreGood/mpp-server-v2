@@ -1,10 +1,19 @@
-module.exports = Object.seal({
-    port: "8080",
+module.exports = {
+    port: "8082",
     motd: "You agree to read this message.",
-    _id_PrivateKey: "boppity",
+    salt: "boppity",
     defaultUsername: "Anonymous",
-    defaultRoomColor: "#3b5054",
-    defaultLobbyColor: "#19b4b9",
-    defaultLobbyColor2: "#801014",
-    adminpass: "adminpass"
-})
+    adminpass: "adminpass",
+    defaultRoomSettings: {
+        color: "#3b5054",
+        color2: "#001014",
+        crownsolo: false,
+        visible: true
+    },
+    defaultLobbySettings: {
+        color: "#FFA500",
+        color2: "#000000",
+        crownsolo: false,
+        visible: true
+    }
+}

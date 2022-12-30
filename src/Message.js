@@ -1,205 +1,437 @@
 const Quota = require('./Quota');
 const User = require("./User.js");
-const Room = require("./Room.js");
-module.exports = (cl) => {
-    cl.once("hi", () => {
-        let user = new User(cl);
-        user.getUserData().then((data) => {
-            let msg = {};
-            msg.m = "hi";
-            msg.motd = cl.server.welcome_motd;
-            msg.t = Date.now();
-            msg.u = data;
-            msg.v = "Beta";
-            cl.sendArray([msg])
-            cl.user = data;
-        })
-    })
-    cl.on("t", msg => {
+const sitebanDatabase = require("./Database.js").sitebanDatabase;
+function ms(t) {
+    let year,
+        month,
+        day,
+        hour,
+        minute,
+        second;
+
+    second = Math.floor(t / 1000);
+    minute = Math.floor(second / 60);
+    second = second % 60;
+    hour = Math.floor(minute / 60);
+    minute = minute % 60;
+    day = Math.floor(hour / 24);
+    hour = hour % 24;
+    month = Math.floor(day / 30);
+    day = day % 30;
+    year = Math.floor(month / 12);
+    month = month % 12;
+
+    let timeS = "";
+    timeS += `${year ? year + "years, " : ""}${month ? month + "months, " : ""}${day ? day + "days, " : ""}`
+    timeS += `${hour} hours, ${minute} minutes, ${second} seconds`
+
+    return timeS;
+}
+
+async function ran(client) {
+    if(client.authenicated) return;
+
+    let user = new User(client);
+    const data = await user.getUserData();
+    let ban = sitebanDatabase.getBan(data._id);
+
+    if(ban) {
+        client.sendArray([{
+            "m": "notification",
+            "duration": 300000,
+            "id": "banNotification",
+            "target": "#piano",
+            "class": "classic",
+            "title": "You've been banned.",
+            "text": `You were banned. Time left: ${ms(ban.created-(Date.now()-ban.duration))}. Reason: ${ban.reason}. Contact a staff member to get unbanned.`
+        }])
+        client.destroy();
+        return;
+    }
+
+    let msg = [{
+        m: "hi",
+        motd: client.server.welcome_motd,
+        t: Date.now(),
+        u: data,
+        v: "heavily modded bopit-server, with permissions, tags, proper chowning, room settings and admin tools!",
+        permissions: {}
+    }];
+
+    [...data.flags].map(z=>msg[0].permissions[z[0]]=z[1])
+
+    client.sendArray(msg)
+    client.user = data;
+}
+
+module.exports = (client) => {
+    client.once("hi", async () => await ran(client));
+    client.once("devices", async () => await ran(client));
+
+    client.on("t", msg => {
         if (msg.hasOwnProperty("e") && !isNaN(msg.e))
-            cl.sendArray([{
+            client.sendArray([{
                 m: "t",
                 t: Date.now(),
                 e: msg.e
             }])
     })
-    cl.on("ch", msg => {
+    client.on("ch", async msg => {
         if (!msg.hasOwnProperty("set") || !msg.set) msg.set = {};
         if (msg.hasOwnProperty("_id") && typeof msg._id == "string") {
             if (msg._id.length > 512) return;
-            if (!cl.staticQuotas.room.attempt()) return;
-            cl.setChannel(msg._id, msg.set);
+            if (!client.staticQuotas.room.attempt()) return;
+            await client.setChannel(msg._id, msg.set);
             let param;
-            if (cl.channel.isLobby(cl.channel._id)) {
+            if (client.channel.isLobby(client.channel._id)) {
                 param = Quota.N_PARAMS_LOBBY;
             } else {
-                if (!(cl.user._id == cl.channel.crown.userId)) {
+                if (!(client.user._id == client.channel.crown.userId)) {
                     param = Quota.N_PARAMS_NORMAL;
                 } else {
                     param = Quota.N_PARAMS_RIDICULOUS;
                 }
             }
             param.m = "nq";
-            cl.sendArray([param])
+            client.sendArray([param])
+
+            client.authenicated = true;
         }
     })
-    cl.on("m", (msg, admin) => {
-        if (!cl.quotas.cursor.attempt() && !admin) return;
-        if (!(cl.channel && cl.participantId)) return;
+    client.on("m", (msg) => {
+        if (!client.authenicated) return;
+        if (!client.quotas.cursor.attempt() && !client.user.flags.get("no mouse rate limit")) return;
+        if (!(client.channel && client.participantId)) return;
         if (!msg.hasOwnProperty("x")) msg.x = null;
         if (!msg.hasOwnProperty("y")) msg.y = null;
         if (parseInt(msg.x) == NaN) msg.x = null;
         if (parseInt(msg.y) == NaN) msg.y = null;
-        cl.channel.emit("m", cl, msg.x, msg.y)
-
+        client.channel.emit("m", client, msg.x, msg.y)
     })
-    cl.on("chown", (msg, admin) => {
-        if (!cl.quotas.chown.attempt() && !admin) return;
-        if (!(cl.channel && cl.participantId)) return;
-        //console.log((Date.now() - cl.channel.crown.time))
-        //console.log(!(cl.channel.crown.userId != cl.user._id), !((Date.now() - cl.channel.crown.time) > 15000));
-        if (!(cl.channel.crown.userId == cl.user._id) && !((Date.now() - cl.channel.crown.time) > 15000)) return;
+    client.on("chown", (msg) => {
+        if (!(client.channel && client.participantId)) return;
+        if(client.user.flags.get("chownAnywhere")) {
+            client.channel.chown(msg.id);
+            return;
+        }
+        if (!client.quotas.chown.attempt()) return;
+
+        //console.log((Date.now() - client.channel.crown.time))
+        //console.log(!(client.channel.crown.userId != client.user._id), !((Date.now() - client.channel.crown.time) > 15000));
+        if (!(client.channel.crown.userId == client.user._id) && !((Date.now() - client.channel.crown.time) > 15000)) return;
         if (msg.hasOwnProperty("id")) {
-            // console.log(cl.channel.crown)
-            if (cl.user._id == cl.channel.crown.userId || cl.channel.crowndropped)
-                cl.channel.chown(msg.id);
-                if (msg.id == cl.user.id) {
+            // console.log(client.channel.crown)
+            if (client.user._id == client.channel.crown.userId || client.channel.crowndropped)
+                client.channel.chown(msg.id);
+                if (msg.id == client.user.id) {
                     param =  Quota.N_PARAMS_RIDICULOUS;
                     param.m = "nq";
-                    cl.sendArray([param])
+                    client.sendArray([param])
                 }
         } else {
-            if (cl.user._id == cl.channel.crown.userId || cl.channel.crowndropped)
-                cl.channel.chown();
+            if (client.user._id == client.channel.crown.userId || client.channel.crowndropped)
+                client.channel.chown();
                 param =  Quota.N_PARAMS_NORMAL;
                 param.m = "nq";
-                cl.sendArray([param])
+                client.sendArray([param])
         }
     })
-    cl.on("chset", msg => {
-        if (!(cl.channel && cl.participantId)) return;
-        if (!(cl.user._id == cl.channel.crown.userId)) return;
-        if (!msg.hasOwnProperty("set") || !msg.set) msg.set = cl.channel.verifySet(cl.channel._id,{});
-        cl.channel.settings = msg.set;
-        cl.channel.updateCh();
+    client.on("chset", msg => {
+        if (!(client.channel && client.participantId)) return;
+        if (!(client.user._id == client.channel.crown.userId)) return;
+        if (!msg.hasOwnProperty("set") || !msg.set) msg.set = client.channel.verifySet(client.channel._id,{});
+        client.channel.settings = msg.set;
+        client.channel.updateCh();
     })
-    cl.on("a", (msg, admin) => {
-        if (!(cl.channel && cl.participantId)) return;
+    client.on("a", (msg, admin) => {
+        if (!(client.channel && client.participantId)) return;
         if (!msg.hasOwnProperty('message')) return;
-        if (cl.channel.settings.chat) {
-            if (cl.channel.isLobby(cl.channel._id)) {
-                if (!cl.quotas.chat.lobby.attempt() && !admin) return;
+        if (client.channel.settings.chat) {
+            if (client.channel.isLobby(client.channel._id)) {
+                if (!client.quotas.chat.lobby.attempt() && !client.user.flags.get("no chat rate limit")) return;
             } else {
-                if (!(cl.user._id == cl.channel.crown.userId)) {
-                    if (!cl.quotas.chat.normal.attempt() && !admin) return;
+                if (!(client.user._id == client.channel.crown.userId)) {
+                    if (!client.quotas.chat.normal.attempt() && !client.user.flags.get("no chat rate limit")) return;
                 } else {
-                    if (!cl.quotas.chat.insane.attempt() && !admin) return;
+                    if (!client.quotas.chat.insane.attempt() && !client.user.flags.get("no chat rate limit")) return;
                 }
             }
-            cl.channel.emit('a', cl, msg);
+            client.channel.emit('a', client, msg);
         }
     })
-    cl.on('n', msg => {
-        if (!(cl.channel && cl.participantId)) return;
+    client.on('n', msg => {
+        if (!(client.channel && client.participantId)) return;
         if (!msg.hasOwnProperty('t') || !msg.hasOwnProperty('n')) return;
         if (typeof msg.t != 'number' || typeof msg.n != 'object') return;
-        if (cl.channel.settings.crownsolo) {
-            if ((cl.channel.crown.userId == cl.user._id) && !cl.channel.crowndropped) {
-                cl.channel.playNote(cl, msg);
+        if (client.channel.settings.crownsolo) {
+            if ((client.channel.crown.userId == client.user._id) && !client.channel.crowndropped) {
+                client.channel.playNote(client, msg);
             }
         } else {
-            cl.channel.playNote(cl, msg);
+            client.channel.playNote(client, msg);
         }
     })
-    cl.on('+ls', msg => {
-        if (!(cl.channel && cl.participantId)) return;
-        cl.server.roomlisteners.set(cl.connectionid, cl);
+    client.on('+ls', msg => {
+        if (!(client.channel && client.participantId)) return;
+        client.server.roomlisteners.set(client.connectionid, client);
         let rooms = [];
-        for (let room of Array.from(cl.server.rooms.values())) {
+        for (let room of Array.from(client.server.rooms.values())) {
             let data = room.fetchData().ch;
-            if (room.bans.get(cl.user._id)) {
+            if (room.bans.get(client.user._id)) {
                 data.banned = true;
             }
             if (room.settings.visible) rooms.push(data);
         }
-        cl.sendArray([{
+        client.sendArray([{
             "m": "ls",
             "c": true,
             "u": rooms
         }])
     })
-    cl.on('-ls', msg => {
-        if (!(cl.channel && cl.participantId)) return;
-        cl.server.roomlisteners.delete(cl.connectionid);
+    client.on('-ls', msg => {
+        if (!(client.channel && client.participantId)) return;
+        client.server.roomlisteners.delete(client.connectionid);
     })
-    cl.on("userset", msg => {
-        if (!(cl.channel && cl.participantId)) return;
+    client.on("userset", async msg => {
+        if (!(client.channel && client.participantId)) return;
         if (!msg.hasOwnProperty("set") || !msg.set) msg.set = {};
         if (msg.set.hasOwnProperty('name') && typeof msg.set.name == "string") {
             if (msg.set.name.length > 40) return;
-            if(!cl.quotas.name.attempt()) return;
-            cl.user.name = msg.set.name;
-            let user = new User(cl);
-            user.getUserData().then((usr) => {
-                let dbentry = user.userdb.get(cl.user._id);
-                if (!dbentry) return;
-                dbentry.name = msg.set.name;
-                user.updatedb();
-                cl.server.rooms.forEach((room) => {
-                    room.updateParticipant(cl.user._id, {
-                        name: msg.set.name
-                    });
-                })
+            if(!client.quotas.userset.attempt()) return;
+            client.user.name = msg.set.name;
+            let user = new User(client);
+            let data = await user.getUserData();
+            if (!data) return;
+            data.name = msg.set.name;
+            user.updateDatabase(data);
+            client.server.rooms.forEach((room) => {
+                room.updateParticipant(client.user._id, {
+                    name: msg.set.name
+                });
             })
-
         }
     })
-    cl.on('kickban', msg => {
-        if (cl.channel.crown == null) return;
-        if (!(cl.channel && cl.participantId)) return;
-        if (!cl.channel.crown.userId) return;
-        if (!(cl.user._id == cl.channel.crown.userId)) return;
+    client.on('kickban', msg => {
+        if (client.channel.crown == null) return;
+        if (!(client.channel && client.participantId)) return;
+        if (!client.channel.crown.userId) return;
+
+        if(!client.user.flags.get("chownAnywhere")) {
+            if (!(client.user._id == client.channel.crown.userId)) return;
+        }
+
         if (msg.hasOwnProperty('_id') && typeof msg._id == "string") {
-            if (!cl.quotas.kickban.attempt() && !admin) return;
+            if (!client.quotas.kickban.attempt() && !admin) return;
             let _id = msg._id;
             let ms = msg.ms || 3600000;
-            cl.channel.kickban(_id, ms);
+            client.channel.kickban(_id, ms);
         }
     })
-    cl.on("bye", msg => {
-        cl.destroy();
+    client.on("bye", msg => {
+        client.destroy();
     })
-    cl.on("admin message", msg => {
-        if (!(cl.channel && cl.participantId)) return;
+    client.on("admin message", msg => {
+        if (!(client.channel && client.participantId)) return;
         if (!msg.hasOwnProperty('password') || !msg.hasOwnProperty('msg')) return;
         if (typeof msg.msg != 'object') return;
-        if (msg.password !== cl.server.adminpass) return;
-        cl.ws.emit("message", JSON.stringify([msg.msg]), true);
+        if (msg.password !== client.server.adminpass) return;
+        client.ws.emit("message", JSON.stringify([msg.msg]), true);
     })
+
     //admin only stuff
-    cl.on('color', (msg, admin) => {
-        if (!admin) return;
-        if (typeof cl.channel.verifyColor(msg.color) != 'string') return;
+    client.on('setcolor', (msg, admin) => {
+        let usersetOthers = client.user.flags.get("usersetOthers")
+        if(!usersetOthers) return;
+        if (typeof client.channel.verifyColor(msg.color) != 'string') return;
         if (!msg.hasOwnProperty('id') && !msg.hasOwnProperty('_id')) return;
-        cl.server.connections.forEach((usr) => {
+        client.server.connections.forEach(async (usr) => {
             if ((usr.channel && usr.participantId && usr.user) && (usr.user._id == msg._id || (usr.participantId == msg.id))) {
                 let user = new User(usr);
-                user.cl.user.color = msg.color;
-                user.getUserData().then((uSr) => {
-                    if (!uSr._id) return;
-                    let dbentry = user.userdb.get(uSr._id);
-                    if (!dbentry) return;
-                    dbentry.color = msg.color;
-                    user.updatedb();
-                    cl.server.rooms.forEach((room) => {
-                        room.updateParticipant(usr.user._id, {
-                            color: msg.color
-                        });
-                    })
+                user.client.user.color = msg.color;
+                let data = await user.getUserData();
+                if (!data._id) return;
+                data.color = msg.color;
+                user.updateDatabase(data);
+                client.server.rooms.forEach((room) => {
+                    room.updateParticipant(usr.user._id, {
+                        color: msg.color
+                    });
                 })
+
             }
         })
-
     })
 
+    client.on("siteban", async (msg) => {
+        let validReasons = ["Discrimination","Inappropriate discussion","Sharing inappropriate content","Discussing self-harm","Piano spam in lobbies","Chat spam in lobbies","Evading site-wide punishments","Evading mutes or kickbans","Exploiting bugs","Phishing/IP grabbing","Abusing bots or scripts","Promoting violence/illegal activities","Promoting breaking the rules","Giving other user's personal information","Sending the same message in many rooms","Spamming the piano in many rooms","Holding the crown in someone else's room","Abusing permissions/quotas","Impersonation","Lying about other users"];
+        if(!client.user.flags.get("siteBan")) return;
+        if(msg.permanent) msg.duration = 3.154e+11;
+        if (typeof msg.duration !== 'number') return;
+        if (typeof msg.reason !== 'string') return;
+        if (typeof msg.note !== 'string') return;
+        if(msg.reason.length == 0) return;
+        if (msg.duration > 1000 * 60 * 60 * 24 * 30 && !client.user.flags.get("siteBanAnyDuration")) return;
+        if(!validReasons.includes(msg.reason) && !client.user.flags.get("siteBanAnyReason")) return;
+        if (!msg.hasOwnProperty('id') && !msg.hasOwnProperty('_id')) return;
+
+        if(msg._id) {
+            if(sitebanDatabase.getBan(msg._id)) {
+                sitebanDatabase.unban(msg._id)
+                return;
+            }
+        }
+
+        client.server.connections.forEach(async (usr) => {
+            if ((usr.channel && usr.participantId && usr.user) && (usr.user._id == msg._id || (usr.participantId == msg.id))) {
+                let user = new User(usr);
+                let data = await user.getUserData();
+                if (!data._id) return;
+                sitebanDatabase.ban(data._id, msg.reason, msg.duration, msg.note, client.user._id);
+                user.client.destroy();
+            }
+        })
+    })
+    client.on('setname', (msg, admin) => {
+        let usersetOthers = client.user.flags.get("usersetOthers")
+        if(!usersetOthers) return;
+        if (typeof msg.name != 'string') return;
+        if (!msg.hasOwnProperty('id') && !msg.hasOwnProperty('_id')) return;
+        client.server.connections.forEach(async (usr) => {
+            if ((usr.channel && usr.participantId && usr.user) && (usr.user._id == msg._id || (usr.participantId == msg.id))) {
+                let user = new User(usr);
+                user.client.user.name = msg.name;
+                let data = await user.getUserData();
+                if (!data._id) return;
+                data.name = msg.name;
+                user.updateDatabase(data);
+                client.server.rooms.forEach((room) => {
+                    room.updateParticipant(usr.user._id, {
+                        name: msg.name
+                    });
+                })
+
+            }
+        })
+    })
+
+    client.on('user_flag', (msg, admin) => {
+        if (!admin) return;
+        if (!msg.hasOwnProperty('id') && !msg.hasOwnProperty('_id')) return;
+        if(typeof msg.key !== "string") return;
+        if(!(typeof msg.value == "boolean" || typeof msg.value == "string")) return;
+
+        client.server.connections.forEach(async (usr) => {
+            if ((usr.channel && usr.participantId && usr.user) && (usr.user._id == msg._id || (usr.participantId == msg.id))) {
+                let user = new User(usr);
+                if(msg.value == false) {
+                    user.client.user.flags.delete(msg.key)
+                } else {
+                    user.client.user.flags.set(msg.key, msg.value);
+                }
+
+                let data = await user.getUserData()
+                if (!data._id) return;
+                data.flags = JSON.stringify([...user.client.user.flags]);
+                user.updateDatabase(data);
+            }
+        })
+    })
+
+    client.on("clearchat", () => {
+        if(!client.user.flags.get('clearChat')) return;
+
+        client.channel.chatmsgs = []
+        client.channel.connections.forEach(z => {
+            z.sendArray([{
+                m: "c",
+                c: []
+            }]);
+        })
+    })
+    client.on('tag', (msg) => {
+        if(!client.user.flags.get('tagging')) return;
+
+        if (!msg.hasOwnProperty('id') && !msg.hasOwnProperty('_id')) return;
+        if(typeof msg.remove !== "boolean") return;
+        if(!msg.hasOwnProperty("tag")) return;
+        if(typeof msg.tag !== "object") return;
+        if(typeof msg.tag.color !== "string" || typeof msg.tag.text !== "string") return;
+        if(typeof client.channel.verifyColor(msg.tag.color) != 'string') return;
+        if(msg.tag.text.length >= 15) return;
+
+        client.server.connections.forEach(async (usr) => {
+            if ((usr.channel && usr.participantId && usr.user) && (usr.user._id == msg._id || (usr.participantId == msg.id))) {
+                let user = new User(usr);
+                if(msg.remove) delete msg.tag;
+                user.client.user.tag = msg.tag;
+                let data = await user.getUserData()
+                if (!data._id) return;
+                data.tag = msg.tag;
+                client.server.rooms.forEach((room) => {
+                    room.updateParticipant(usr.user._id, {
+                        tag: msg.tag
+                    });
+                })
+                user.updateDatabase(data);
+            }
+        })
+    })
+
+    client.on('notification', (msg, admin) => {
+        if (!admin) return;
+        if( typeof msg.id !== "string" ||
+            typeof msg.class !== "string" ||
+            typeof msg.target !== "string" ||
+            typeof msg.duration !== "number"
+        ) return;
+
+        let param = {
+            "m": "notification",
+            "duration": msg.duration,
+            "id": msg.id,
+            "target": msg.target,
+            "class": msg.class
+        }
+
+        if(msg.class == "short") {
+            if(typeof msg.html !== "string") return;
+            param.html = msg.html;
+        } else if(msg.class == "classic") {
+            if(msg.text && typeof msg.text !== "string") return;
+            if(msg.title && typeof msg.title !== "string") return;
+            param.text = msg.text;
+            param.title = msg.title;
+        } else {
+            return;
+        }
+
+        if(msg.targetChannel == "all") {
+            client.server.rooms.forEach((room) => {
+                room.connections.forEach(z => {
+                    if(msg.targetUser) {
+                        if(z.user._id == msg.targetUser) {
+                            z.sendArray([param])
+                        }
+                    } else {
+                        z.sendArray([param])
+                    }
+                })
+            })
+        } else {
+            if(typeof msg.targetChannel !== "string") return;
+            const room = client.server.rooms.get(msg.targetChannel);
+
+            if(room) {
+                room.connections.forEach(z => {
+                    if(msg.targetUser) {
+                        if(z.user._id == msg.targetUser) {
+                            z.sendArray([param])
+                        }
+                    } else {
+                        z.sendArray([param])
+                    }
+                })
+            }
+        }
+    })
 }

@@ -1,53 +1,46 @@
-const ColorEncoder = require("./ColorEncoder.js");
-const { promisify } = require('util');
-let userdb;
+const fs = require("fs/promises")
+const crypto = require("node:crypto")
+const userDatabase = require("./Database.js").userDatabase;
+
+function buf2hex(buffer) { // buffer is an ArrayBuffer
+    return [...new Uint8Array(buffer)]
+        .map(x => x.toString(16).padStart(2, '0'))
+        .join('');
+}
+
 class User {
-    constructor(cl) {
-        this.cl = cl;
-        this.server = this.cl.server;
-        this.userdb = userdb;
-        this.default_db = {};
+    constructor(client) {
+        this.client = client;
+        this.server = this.client.server;
     }
+
     async getUserData() {
-        if (!userdb || (userdb instanceof Map && [...userdb.entries()] == [])) {
-            await this.setUpDb();
+        let _id = buf2hex(await crypto.subtle.digest("sha-512", new TextEncoder().encode(this.client.server.salt + this.client.ip))).toString('hex').slice(0, 24);
+
+        let user = {
+            "color": `#${_id.slice(0, 6)}`,
+            "name": this.server.defaultUsername,
+            "_id": _id,
+            "ip": this.client.ip,
+            "flags": new Map()
         }
-        let _id = createKeccakHash('keccak256').update((this.cl.server._id_Private_Key + this.cl.ip)).digest('hex').substr(0, 24);
-        let usertofind = userdb.get(_id);
-        if (!usertofind) {
-            if (typeof usertofind == 'object' && (usertofind.hasOwnProperty('name') && usertofind.name != this.server.defaultUsername)) return;
-            userdb.set(_id, {
-                "color": `#${ColorEncoder.intToRGB(ColorEncoder.hashCode(_id)).toLowerCase()}`,
-                "name": this.server.defaultUsername,
-                "_id": _id,
-                "ip": this.cl.ip
-            });
-            this.updatedb();
-        }
-        let user = userdb.get(_id);
-        return {
-            "color": user.color,
-            "name": user.name,
-            "_id": user._id,
-        }
-    }
-    async updatedb() {
-        const writeFile = promisify(fs.writeFile);
-        await writeFile('src/db/users.json', JSON.stringify(User.strMapToObj(userdb), null, 2));
-    }
-    async setUpDb() {
-        const writeFile = promisify(fs.writeFile);
-        const readdir = promisify(fs.readdir);
-        let files = await readdir("src/db/");
-        if (!files.includes("users.json")) {
-            await writeFile('src/db/users.json', JSON.stringify(this.default_db, null, 2))
-            userdb = new Map(Object.entries(require("./db/users.json")));
+
+        if(userDatabase.has(_id)) {
+            let semiRaw = userDatabase.get(_id);
+            semiRaw.flags = new Map(JSON.parse(semiRaw.flags));
+            semiRaw.tag = JSON.parse(semiRaw.tag);
+
+            if(!semiRaw.tag) semiRaw.tag = undefined;
+
+            user = semiRaw;
         } else {
-            userdb = new Map(Object.entries(require("./db/users.json")));
+            this.updateDatabase(user);
         }
+        return user
     }
-    static strMapToObj(strMap) {
-        return [...strMap.entries()].reduce((obj, [key, value]) => (obj[key] = value, obj), {});
+
+    updateDatabase(user) {
+        userDatabase.set(user._id, user);
     }
 }
 module.exports = User;

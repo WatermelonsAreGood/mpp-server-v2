@@ -1,9 +1,12 @@
+const { EventEmitter } = require("node:events")
+const WebSocket = require("ws")
+
 const Room = require("./Room.js");
 const Quota = require ("./Quota.js");
 const quotas = require('../Quotas');
 const RateLimit = require('./Ratelimit.js').RateLimit;
 const RateLimitChain = require('./Ratelimit.js').RateLimitChain;
-require('node-json-color-stringify');
+
 class Client extends EventEmitter {
     constructor(ws, req, server) {
         super();
@@ -16,21 +19,22 @@ class Client extends EventEmitter {
         this.staticQuotas = {
             room: new RateLimit(quotas.room.time)
         };
-        this.quotas = {};
+        this.quotas = quotas;
         this.ws = ws;
         this.req = req;
         this.ip = (req.connection.remoteAddress).replace("::ffff:", "");
-        this.destroied = false;
+        this.authenicated = false;
         this.bindEventListeners();
         require('./Message.js')(this);
     }
+
     isConnected() {
         return this.ws && this.ws.readyState === WebSocket.OPEN;
     }
     isConnecting() {
         return this.ws && this.ws.readyState === WebSocket.CONNECTING;
     }
-    setChannel(_id, settings) {
+    async setChannel(_id, settings) {
         if (this.channel && this.channel._id == _id) return;
         if (this.server.rooms.get(_id)) {
             let room = this.server.rooms.get(_id, settings);
@@ -48,20 +52,20 @@ class Client extends EventEmitter {
                     "#room",
                     "short"
                 );
-                this.setChannel("test/awkward", settings);
+                await this.setChannel("test/awkward", settings);
                 return;
             }
             let channel = this.channel;
             if (channel) this.channel.emit("bye", this);
             if (channel) this.channel.updateCh();
             this.channel = this.server.rooms.get(_id);
-            this.channel.join(this);
+            await this.channel.join(this);
         } else {
             let room = new Room(this.server, _id, settings);
             this.server.rooms.set(_id, room);
             if (this.channel) this.channel.emit("bye", this);
             this.channel = this.server.rooms.get(_id);
-            this.channel.join(this);
+            await this.channel.join(this);
         }
     }
     sendArray(arr) {
@@ -99,7 +103,7 @@ class Client extends EventEmitter {
         this.server.roomlisteners.delete(this.connectionid);
         this.connectionid;
         this.server.connections.delete(this.connectionid);
-        this.destroied = true;
+        this.authenicated = false;
         console.log(`Removed Connection ${this.connectionid}.`);
     }
     bindEventListeners() {
@@ -118,12 +122,12 @@ class Client extends EventEmitter {
             }
         });
         this.ws.on("close", () => {
-            if (!this.destroied)
+            if (!this.authenicated)
                 this.destroy();
         });
         this.ws.addEventListener("error", (err) => {
             console.error(err);
-            if (!this.destroied)
+            if (!this.authenicated)
                 this.destroy();
         });
     }
