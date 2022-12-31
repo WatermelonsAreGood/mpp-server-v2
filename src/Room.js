@@ -106,20 +106,20 @@ class Room extends EventEmitter {
         if (!(otheruser.length > 1)) {
             this.ppl.delete(p.participantId);
             this.connections.splice(this.connections.findIndex((a) => a.connectionid == p.connectionid), 1);
-            console.log(`Deleted client`);
-            if (this.crown) {
-                if (this.crown.userId == p.user._id && !this.crowndropped) {
-                    this.chown();
-                }
-            }
+            console.log(`Deleted client ${p.user.id}`);
 
             this.sendArray([{
                 m: "bye",
                 p: p.participantId
             }], p, false);
 
+            if (this.crown) {
+                if (this.crown.userId == p.user._id && !this.crowndropped) {
+                    this.chown();
+                }
+            }
 
-            this.updateCh(p);
+            this.updateCh();
         } else {
             this.connections.splice(this.connections.findIndex((a) => a.connectionid == p.connectionid), 1);
         }
