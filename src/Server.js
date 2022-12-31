@@ -13,7 +13,8 @@ class Server {
         this.httpServer = this.expressApp.listen(config.port);
         this.wss = new WebSocketServer({
             backlog: 100,
-            server : this.httpServer
+            server : this.httpServer,
+            maxPayload: 16384
         });
         this.expressApp.use(staticFile(join(__dirname, "../client/client")));
 
