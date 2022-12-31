@@ -30,6 +30,7 @@ class Client extends EventEmitter {
             this.ip = (req.connection.remoteAddress).replace("::ffff:", "");
         }
         this.authenicated = false;
+        this.dead = false;
         this.bindEventListeners();
         require('./Message.js')(this);
     }
@@ -109,7 +110,7 @@ class Client extends EventEmitter {
         this.server.roomlisteners.delete(this.connectionid);
         this.connectionid;
         this.server.connections.delete(this.connectionid);
-        this.authenicated = false;
+        this.dead = true;
         console.log(`Removed Connection ${this.connectionid}.`);
     }
     bindEventListeners() {
@@ -128,12 +129,12 @@ class Client extends EventEmitter {
             }
         });
         this.ws.on("close", () => {
-            if (!this.authenicated)
+            if (!this.dead)
                 this.destroy();
         });
         this.ws.addEventListener("error", (err) => {
             console.error(err);
-            if (!this.authenicated)
+            if (!this.dead)
                 this.destroy();
         });
     }

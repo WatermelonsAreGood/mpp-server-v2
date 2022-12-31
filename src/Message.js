@@ -36,6 +36,13 @@ async function ran(client) {
     let ban = sitebanDatabase.getBan(data._id);
 
     if(ban) {
+        let timeLeft = ban.created-(Date.now()-ban.duration);
+
+        if(timeLeft < 0) {
+            sitebanDatabase.unban(data._id);
+            return;
+        }
+
         client.sendArray([{
             "m": "notification",
             "duration": 300000,
@@ -43,7 +50,7 @@ async function ran(client) {
             "target": "#piano",
             "class": "classic",
             "title": "You've been banned.",
-            "text": `You were banned. Time left: ${ms(ban.created-(Date.now()-ban.duration))}. Reason: ${ban.reason}. Contact a staff member to get unbanned.`
+            "text": `You were banned. Time left: ${ms(timeLeft)}. Reason: ${ban.reason}. Contact a staff member to get unbanned.`
         }])
         client.destroy();
         return;
