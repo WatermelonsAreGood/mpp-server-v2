@@ -135,7 +135,10 @@ class Room extends EventEmitter {
     updateCh(client) { //update channel for all people in channel
         if (Array.from(this.ppl.values()).length <= 0) this.destroy();
         this.connections.forEach((usr) => {
-            this.server.connections.get(usr.connectionid).sendArray([this.fetchData(usr, client)])
+            let racer = this.server.connections.get(usr.connectionid); // Racy race condition! Uh oh!
+            if(racer) {
+                racer.sendArray([this.fetchData(usr, client)])
+            }
         })
         this.server.updateRoom(this.fetchData());
     }
