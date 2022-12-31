@@ -1,18 +1,15 @@
-const { EventEmitter } = require("node:events")
-const WebSocket = require("ws")
+import Room from "./Room.js";
+import Quota from "./Quota.js";
+import message from "./Message.js"
+import quotas from '../Quotas.js';
+import config from "../config.js";
 
-const Room = require("./Room.js");
-const Quota = require ("./Quota.js");
-const quotas = require('../Quotas');
-const config = require("../config.js")
-
-const RateLimit = require('./Ratelimit.js').RateLimit;
-const RateLimitChain = require('./Ratelimit.js').RateLimitChain;
+import { EventEmitter } from "node:events"
+import { RateLimit, RateLimitChain } from './Ratelimit.js';
 
 class Client extends EventEmitter {
     constructor(ws, req, server) {
         super();
-        EventEmitter.call(this);
         this.user;
         this.connectionid = server.connectionid;
         this.server = server;
@@ -29,19 +26,20 @@ class Client extends EventEmitter {
         } else {
             this.ip = (req.connection.remoteAddress).replace("::ffff:", "");
         }
+
         this.authenicated = false;
         this.dead = false;
         this.bindEventListeners();
-        require('./Message.js')(this);
+        message(this);
     }
 
     isConnected() {
-        return this.ws && this.ws.readyState === WebSocket.OPEN;
+        return this.ws && this.ws.readyState === 1;
     }
     isConnecting() {
-        return this.ws && this.ws.readyState === WebSocket.CONNECTING;
+        return this.ws && this.ws.readyState === 0;
     }
-    async setChannel(_id, settings) {
+    setChannel(_id, settings) {
         if (this.channel && this.channel._id == _id) return;
         if (this.server.rooms.get(_id)) {
             let room = this.server.rooms.get(_id, settings);
@@ -59,20 +57,20 @@ class Client extends EventEmitter {
                     "#room",
                     "short"
                 );
-                await this.setChannel("test/awkward", settings);
+                this.setChannel("test/awkward", settings);
                 return;
             }
             let channel = this.channel;
             if (channel) this.channel.emit("bye", this);
             if (channel) this.channel.updateCh();
             this.channel = this.server.rooms.get(_id);
-            await this.channel.join(this);
+            this.channel.join(this);
         } else {
             let room = new Room(this.server, _id, settings);
             this.server.rooms.set(_id, room);
             if (this.channel) this.channel.emit("bye", this);
             this.channel = this.server.rooms.get(_id);
-            await this.channel.join(this);
+            this.channel.join(this);
         }
     }
     sendArray(arr) {
@@ -139,4 +137,4 @@ class Client extends EventEmitter {
         });
     }
 }
-module.exports = Client;
+export default Client;

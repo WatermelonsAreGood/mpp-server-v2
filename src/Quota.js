@@ -1,45 +1,4 @@
-//Adaptation of https://gist.github.com/brandon-lockaby/7339587 into modern javascript.
-/*
-class RateLimit {
-    constructor(interval_ms) {
-	    this._interval_ms = interval_ms || 0; // (0 means no limit)
-        this._after = 0;
-    }
-    attempt(time) {
-        var time = time || Date.now();
-        if(time < this._after) return false;
-        this._after = time + this._interval_ms;
-        return true;
-    };
-
-    interval(interval_ms) {
-        this._after += interval_ms - this._interval_ms;
-        this._interval_ms = interval_ms;
-    };
-}
-
-class RateLimitChain(num, interval_ms) {
-    constructor(num, interval_ms) {
-        this.setNumAndInterval(num, interval_ms);
-    }  
-
-    attempt(time) {
-        var time = time || Date.now();
-        for(var i = 0; i < this._chain.length; i++) {
-            if(this._chain[i].attempt(time)) return true;
-        }
-        return false;
-    };
-
-    setNumAndInterval(num, interval_ms) {
-        this._chain = [];
-        for(var i = 0; i < num; i++) {
-            this._chain.push(new RateLimit(interval_ms));
-        }
-    };
-}*/
-
-class Quota {
+export default class Quota {
     constructor(params, cb) {
         this.cb = cb;
         this.setParams(params);
@@ -155,5 +114,3 @@ class Quota {
         }
     };
 }
-
-module.exports = Quota

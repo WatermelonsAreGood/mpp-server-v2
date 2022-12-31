@@ -1,4 +1,4 @@
-const bsql = require('better-sqlite3');
+import bsql from 'better-sqlite3';
 
 class UserDatabase {
     constructor() {
@@ -60,4 +60,5 @@ class SitebanDatabase {
     }
 }
 
-module.exports = {userDatabase: new UserDatabase(), sitebanDatabase: new SitebanDatabase()};
+export const userDatabase = new UserDatabase();
+export const sitebanDatabase = new SitebanDatabase();

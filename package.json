@@ -20,6 +20,7 @@
   "bugs": {
     "url": "https://github.com/BopItFreak/mpp-server/issues"
   },
+  "type": "module",
   "homepage": "https://github.com/BopItFreak/mpp-server#readme",
   "dependencies": {
     "better-sqlite3": "^8.0.1",

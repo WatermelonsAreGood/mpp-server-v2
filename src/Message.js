@@ -1,6 +1,8 @@
-const Quota = require('./Quota');
-const User = require("./User.js");
-const sitebanDatabase = require("./Database.js").sitebanDatabase;
+import { sitebanDatabase } from "./Database.js";
+
+import quote from './Quota.js';
+import User from "./User.js";
+
 function ms(t) {
     let year,
         month,
@@ -28,12 +30,15 @@ function ms(t) {
     return timeS;
 }
 
-async function ran(client) {
+function ran(client) {
     if(client.authenicated) return;
 
+    client.welcoming = true;
+
     let user = new User(client);
-    const data = await user.getUserData();
+    const data = user.getUserData();
     let ban = sitebanDatabase.getBan(data._id);
+    client.user = data;
 
     if(ban) {
         let timeLeft = ban.created-(Date.now()-ban.duration);
@@ -71,9 +76,9 @@ async function ran(client) {
     client.user = data;
 }
 
-module.exports = (client) => {
-    client.once("hi", async () => await ran(client));
-    client.once("devices", async () => await ran(client));
+export default (client) => {
+    client.on("hi", () => ran(client));
+    client.on("devices", () => ran(client));
 
     client.on("t", msg => {
         if (msg.hasOwnProperty("e") && !isNaN(msg.e))
@@ -83,20 +88,20 @@ module.exports = (client) => {
                 e: msg.e
             }])
     })
-    client.on("ch", async msg => {
+    client.on("ch", msg => {
         if (!msg.hasOwnProperty("set") || !msg.set) msg.set = {};
         if (msg.hasOwnProperty("_id") && typeof msg._id == "string") {
             if (msg._id.length > 512) return;
             if (!client.staticQuotas.room.attempt()) return;
-            await client.setChannel(msg._id, msg.set);
+            client.setChannel(msg._id, msg.set);
             let param;
             if (client.channel.isLobby(client.channel._id)) {
-                param = Quota.N_PARAMS_LOBBY;
+                param = quote.N_PARAMS_LOBBY;
             } else {
                 if (!(client.user._id == client.channel.crown.userId)) {
-                    param = Quota.N_PARAMS_NORMAL;
+                    param = quote.N_PARAMS_NORMAL;
                 } else {
-                    param = Quota.N_PARAMS_RIDICULOUS;
+                    param = quote.N_PARAMS_RIDICULOUS;
                 }
             }
             param.m = "nq";
@@ -131,14 +136,14 @@ module.exports = (client) => {
             if (client.user._id == client.channel.crown.userId || client.channel.crowndropped)
                 client.channel.chown(msg.id);
                 if (msg.id == client.user.id) {
-                    param =  Quota.N_PARAMS_RIDICULOUS;
+                    param =  quote.N_PARAMS_RIDICULOUS;
                     param.m = "nq";
                     client.sendArray([param])
                 }
         } else {
             if (client.user._id == client.channel.crown.userId || client.channel.crowndropped)
                 client.channel.chown();
-                param =  Quota.N_PARAMS_NORMAL;
+                param =  quote.N_PARAMS_NORMAL;
                 param.m = "nq";
                 client.sendArray([param])
         }
@@ -199,7 +204,7 @@ module.exports = (client) => {
         if (!(client.channel && client.participantId)) return;
         client.server.roomlisteners.delete(client.connectionid);
     })
-    client.on("userset", async msg => {
+    client.on("userset", msg => {
         if (!(client.channel && client.participantId)) return;
         if (!msg.hasOwnProperty("set") || !msg.set) msg.set = {};
         if (msg.set.hasOwnProperty('name') && typeof msg.set.name == "string") {
@@ -207,7 +212,7 @@ module.exports = (client) => {
             if(!client.quotas.userset.attempt()) return;
             client.user.name = msg.set.name;
             let user = new User(client);
-            let data = await user.getUserData();
+            let data = user.getUserData();
             if (!data) return;
             data.name = msg.set.name;
             user.updateDatabase(data);
@@ -251,11 +256,11 @@ module.exports = (client) => {
         if(!usersetOthers) return;
         if (typeof client.channel.verifyColor(msg.color) != 'string') return;
         if (!msg.hasOwnProperty('id') && !msg.hasOwnProperty('_id')) return;
-        client.server.connections.forEach(async (usr) => {
+        client.server.connections.forEach((usr) => {
             if ((usr.channel && usr.participantId && usr.user) && (usr.user._id == msg._id || (usr.participantId == msg.id))) {
                 let user = new User(usr);
                 user.client.user.color = msg.color;
-                let data = await user.getUserData();
+                let data = user.getUserData();
                 if (!data._id) return;
                 data.color = msg.color;
                 user.updateDatabase(data);
@@ -269,7 +274,7 @@ module.exports = (client) => {
         })
     })
 
-    client.on("siteban", async (msg) => {
+    client.on("siteban", (msg) => {
         let validReasons = ["Discrimination","Inappropriate discussion","Sharing inappropriate content","Discussing self-harm","Piano spam in lobbies","Chat spam in lobbies","Evading site-wide punishments","Evading mutes or kickbans","Exploiting bugs","Phishing/IP grabbing","Abusing bots or scripts","Promoting violence/illegal activities","Promoting breaking the rules","Giving other user's personal information","Sending the same message in many rooms","Spamming the piano in many rooms","Holding the crown in someone else's room","Abusing permissions/quotas","Impersonation","Lying about other users"];
         if(!client.user.flags.get("siteBan")) return;
         if(msg.permanent) msg.duration = 3.154e+11;
@@ -288,10 +293,10 @@ module.exports = (client) => {
             }
         }
 
-        client.server.connections.forEach(async (usr) => {
+        client.server.connections.forEach((usr) => {
             if ((usr.channel && usr.participantId && usr.user) && (usr.user._id == msg._id || (usr.participantId == msg.id))) {
                 let user = new User(usr);
-                let data = await user.getUserData();
+                let data = user.getUserData();
                 if (!data._id) return;
                 sitebanDatabase.ban(data._id, msg.reason, msg.duration, msg.note, client.user._id);
                 user.client.destroy();
@@ -303,11 +308,11 @@ module.exports = (client) => {
         if(!usersetOthers) return;
         if (typeof msg.name != 'string') return;
         if (!msg.hasOwnProperty('id') && !msg.hasOwnProperty('_id')) return;
-        client.server.connections.forEach(async (usr) => {
+        client.server.connections.forEach((usr) => {
             if ((usr.channel && usr.participantId && usr.user) && (usr.user._id == msg._id || (usr.participantId == msg.id))) {
                 let user = new User(usr);
                 user.client.user.name = msg.name;
-                let data = await user.getUserData();
+                let data = user.getUserData();
                 if (!data._id) return;
                 data.name = msg.name;
                 user.updateDatabase(data);
@@ -327,7 +332,7 @@ module.exports = (client) => {
         if(typeof msg.key !== "string") return;
         if(!(typeof msg.value == "boolean" || typeof msg.value == "string")) return;
 
-        client.server.connections.forEach(async (usr) => {
+        client.server.connections.forEach((usr) => {
             if ((usr.channel && usr.participantId && usr.user) && (usr.user._id == msg._id || (usr.participantId == msg.id))) {
                 let user = new User(usr);
                 if(msg.value == false) {
@@ -336,7 +341,7 @@ module.exports = (client) => {
                     user.client.user.flags.set(msg.key, msg.value);
                 }
 
-                let data = await user.getUserData()
+                let data = user.getUserData()
                 if (!data._id) return;
                 data.flags = JSON.stringify([...user.client.user.flags]);
                 user.updateDatabase(data);
@@ -366,12 +371,12 @@ module.exports = (client) => {
         if(typeof client.channel.verifyColor(msg.tag.color) != 'string') return;
         if(msg.tag.text.length >= 15) return;
 
-        client.server.connections.forEach(async (usr) => {
+        client.server.connections.forEach((usr) => {
             if ((usr.channel && usr.participantId && usr.user) && (usr.user._id == msg._id || (usr.participantId == msg.id))) {
                 let user = new User(usr);
                 if(msg.remove) delete msg.tag;
                 user.client.user.tag = msg.tag;
-                let data = await user.getUserData()
+                let data = user.getUserData()
                 if (!data._id) return;
                 data.tag = msg.tag;
                 client.server.rooms.forEach((room) => {

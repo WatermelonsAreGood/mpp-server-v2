@@ -1,23 +1,21 @@
-const { EventEmitter } = require("node:events")
-const WebSocket = require("ws")
+import { WebSocketServer } from 'ws'
+import Client from "./Client.js";
+import RoomSettings from "./RoomSettings.js";
+import express, { static as staticFile } from 'express';
+import { join, dirname } from "path";
+import { fileURLToPath } from 'url';
 
-const Client = require("./Client.js");
-const RoomSettings = require("./RoomSettings.js");
-const express = require('express');
-const path = require("path")
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
-class Server extends EventEmitter {
+class Server {
     constructor(config) {
-        super();
-        EventEmitter.call(this);
         this.expressApp = express();
         this.httpServer = this.expressApp.listen(config.port);
-
-        this.wss = new WebSocket.Server({
+        this.wss = new WebSocketServer({
             backlog: 100,
             server : this.httpServer
         });
-        this.expressApp.use(express.static(path.join(__dirname, "../client/client")));
+        this.expressApp.use(staticFile(join(__dirname, "../client/client")));
 
         this.connectionid = 0;
         this.connections = new Map();
@@ -51,4 +49,4 @@ class Server extends EventEmitter {
     }
 }
 
-module.exports = Server;
+export default Server;

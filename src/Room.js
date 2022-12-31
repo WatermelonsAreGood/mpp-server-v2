@@ -1,22 +1,15 @@
-const { EventEmitter } = require("node:events")
-const RoomSettings = require("./RoomSettings.js");
-const Crown = require("./Crown.js");
+import { createHash } from "crypto"
+import { EventEmitter } from "node:events"
+import Uwuifier from 'uwuifier';
 
-const crypto = require("node:crypto")
-const Uwuifier = require('uwuifier').default;
+import RoomSettings from "./RoomSettings.js";
+import Crown from "./Crown.js";
 
 const uwuifier = new Uwuifier();
-
-function buf2hex(buffer) { // buffer is an ArrayBuffer
-    return [...new Uint8Array(buffer)]
-        .map(x => x.toString(16).padStart(2, '0'))
-        .join('');
-}
 
 class Room extends EventEmitter {
     constructor(server, _id, settings) {
         super();
-
         this._id = _id;
         this.server = server;
         this.crown = null;
@@ -36,10 +29,10 @@ class Room extends EventEmitter {
         this.bans = new Map();
     }
 
-    async join(client, set) { //this stuff is complicated
+    join(client, set) { //this stuff is complicated
         let otheruser = this.connections.find((a) => a.user._id == client.user._id)
         if (!otheruser) {
-            let participantId = buf2hex(await crypto.subtle.digest("sha-512", new TextEncoder().encode(Math.random().toString() + client.ip))).slice(0, 24);
+            let participantId = createHash('sha512').update(Math.random().toString() + client.ip).digest('hex').slice(0, 24);
 
             client.user.id = participantId;
             client.participantId = participantId;
@@ -113,7 +106,7 @@ class Room extends EventEmitter {
         if (!(otheruser.length > 1)) {
             this.ppl.delete(p.participantId);
             this.connections.splice(this.connections.findIndex((a) => a.connectionid == p.connectionid), 1);
-            console.log(`Deleted client ${p.user.id}`);
+            console.log(`Deleted client`);
             if (this.crown) {
                 if (this.crown.userId == p.user._id && !this.crowndropped) {
                     this.chown();
@@ -340,13 +333,13 @@ class Room extends EventEmitter {
         if (!user) return;
         let asd = true;
         let pthatbanned = this.ppl.get(this.crown.participantId);
-        this.connections.filter((usr) => usr.participantId == user.participantId).forEach(async (u) => {
+        this.connections.filter((usr) => usr.participantId == user.participantId).forEach((u) => {
             user.bantime = Math.floor(Math.floor(ms / 1000) / 60);
             user.bannedtime = Date.now();
             user.msbanned = ms;
             this.bans.set(user.user._id, user);
             if (this.crown && (this.crown.userId)) {
-                await u.setChannel("test/awkward", {});
+                u.setChannel("test/awkward", {});
                 if (asd)
                     this.Notification(user.user._id,
                         "Notice",
@@ -454,4 +447,4 @@ class Room extends EventEmitter {
     }
 
 }
-module.exports = Room;
+export default Room;

@@ -1,4 +1,4 @@
-module.exports = class Crown {
+export default class Crown {
     constructor (id, _id) {
         this.participantId = id;
         this.userId = _id;

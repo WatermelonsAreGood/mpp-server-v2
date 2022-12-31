@@ -14,3 +14,4 @@ tag, clearchat, setcolor, setname, siteban, admin message
 9. New chat curse _3, which uwu-ifies your text
 10. Hri7566's Room Settings changes, which fix all crown/chown related issues
 11. All quota related issues fixed
+12. Everything has been ESM-ified

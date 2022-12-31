@@ -1,4 +1,4 @@
-const config = require ('../config');
+import config from '../config.js';
 
 class RoomSettings {
     static allowedProperties = {
@@ -170,4 +170,4 @@ class RoomSettings {
     }
 }
 
-module.exports = RoomSettings;
+export default RoomSettings;

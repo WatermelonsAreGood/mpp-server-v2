@@ -1,3 +1,4 @@
-let Server = require("./src/Server.js");
+import Server from "./src/Server.js";
+import config from "./config.js"
 
-new Server(require('./config'));
+new Server(config);
