@@ -309,7 +309,8 @@ class Room extends EventEmitter {
                 color: p.user.color,
                 id: p.participantId,
                 name: p.user.name,
-                _id: p.user._id
+                _id: p.user._id,
+                tag: p.user.tag
             };
             message.t = Date.now();
             this.sendArray([message]);
