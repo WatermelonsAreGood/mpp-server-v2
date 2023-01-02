@@ -241,6 +241,7 @@ export default (client) => {
         if(!msg.data) return;
         if(typeof msg.target !== "object") return;
         if(!msg.target.mode) return;
+        if(!msg.target.global) global = false; else global = true;
 
         let param = [{
             "m": "custom",
@@ -250,6 +251,11 @@ export default (client) => {
 
         if(msg.target.mode == "subscribed") {
             for (let cc of Array.from(client.server.customListeners.values())) {
+                if (!global) {
+                    if(cc.channel.name !== client.channel.name) {
+                        return;
+                    }
+                }
                 cc.sendArray(param)
             }
         } else if(msg.target.mode == "id") {
@@ -257,13 +263,14 @@ export default (client) => {
             if(typeof msg.target.id !== "string") return;
 
             client.server.connections.forEach((usr) => {
+                if (!global) {
+                    if(usr.channel.name !== client.channel.name) {
+                        return;
+                    }
+                }
                 if (usr.user._id == msg.target.id || usr.user.id == msg.target.id) {
                     usr.sendArray(param);
                 }
-            })
-        } else if(msg.target.mode == "global") {
-            client.server.connections.forEach((usr) => {
-                usr.sendArray(param);
             })
         } else if(msg.target.mode == "ids") {
             if(!target.ids) return;
@@ -273,6 +280,11 @@ export default (client) => {
 
             client.server.connections.forEach((usr) => {
                 if (target.ids.includes(usr.id) || target.ids.includes(usr.user._id)) {
+                    if (!global) {
+                        if(usr.channel.name !== client.channel.name) {
+                            return;
+                        }
+                    }
                     usr.sendArray(param);
                 }
             })
