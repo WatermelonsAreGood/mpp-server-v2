@@ -1,11 +1,9 @@
 import Room from "./Room.js";
-import Quota from "./Quota.js";
 import message from "./Message.js"
-import quotas from '../Quotas.js';
 import config from "../config.js";
+import NewQuota from "./Quota.js"
 
 import { EventEmitter } from "node:events"
-import { RateLimit, RateLimitChain } from './Ratelimit.js';
 
 class Client extends EventEmitter {
     constructor(ws, req, server) {
@@ -15,9 +13,6 @@ class Client extends EventEmitter {
         this.server = server;
         this.participantId;
         this.channel;
-        this.staticQuotas = {
-            room: new RateLimit(quotas.room.time)
-        };
         this.ws = ws;
         this.req = req;
         if(config.xforwardedtrust) {
@@ -29,8 +24,51 @@ class Client extends EventEmitter {
         this.authenicated = false;
         this.dead = false;
         this.bindEventListeners();
-        this.initParticipantQuotas();
+
+        this.quotas = {
+            mouseMove: new NewQuota([{
+                allowance: 15e3,
+                max: 5e5,
+                interval: 2e3
+            }]),
+            chown: new NewQuota([{
+                allowance: 1,
+                max: 10,
+                time: 5e3
+            }]),
+            chat: new NewQuota([
+                {allowance:4,max:4,interval:6e3},
+                {allowance:4,max:4,interval:6e3},
+                {allowance:10,max:10,interval:2e3}
+            ]),
+            channelChange: new NewQuota([{
+                allowance: 1,
+                max: 10,
+                time: 2e3
+            }]),
+            userset: new NewQuota([{
+                allowance: 1,
+                max: 30,
+                time: 18e5
+            }]),
+            kickban: new NewQuota([{
+                allowance: 1,
+                max: 2,
+                time: 1000
+            }]),
+            note: new NewQuota([
+                {allowance:400,max:1200,interval:2e3},
+                {allowance:200,max:600,interval:2e3},
+                {allowance:600,max:1800,interval:2e3}
+            ]),
+        }
         message(this);
+    }
+
+    updateQuotaFlags(n) {
+        Object.values(this.quotas).forEach(z => {
+            z.updateFlags(n);
+        })
     }
 
     isConnected() {
@@ -79,29 +117,9 @@ class Client extends EventEmitter {
             this.ws.send(JSON.stringify(arr));
         }
     }
-    initParticipantQuotas() {
-        this.quotas = {
-            //"chat": new Quota(Quota.PARAMS_A_NORMAL),
-            chat: {
-                lobby: new RateLimitChain(quotas.chat.lobby.amount, quotas.chat.lobby.time),
-                normal: new RateLimitChain(quotas.chat.normal.amount, quotas.chat.normal.time),
-                insane: new RateLimitChain(quotas.chat.insane.amount, quotas.chat.insane.time)
-            },
-            cursor: new RateLimit(quotas.cursor.time),
-            chown: new RateLimitChain(quotas.chown.amount, quotas.chown.time),
-            userset: new RateLimitChain(quotas.userset.amount, quotas.userset.time),
-            kickban: new RateLimitChain(quotas.kickban.amount, quotas.kickban.time),
-            note: new Quota(Quota.PARAMS_LOBBY),
-            chset: new Quota(Quota.PARAMS_USED_A_LOT),
-            "+ls": new Quota(Quota.PARAMS_USED_A_LOT),
-            "-ls": new Quota(Quota.PARAMS_USED_A_LOT)
-        }
-    }
     destroy() {
         this.ws.close();
-        if (this.channel) {
-            this.channel.emit("bye", this)
-        }
+        if (this.channel) this.channel.emit("bye", this)
         this.user;
         this.participantId;
         this.channel;

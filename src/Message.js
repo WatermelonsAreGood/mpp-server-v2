@@ -1,6 +1,5 @@
 import { sitebanDatabase } from "./Database.js";
 
-import quote from './Quota.js';
 import User from "./User.js";
 
 function ms(t) {
@@ -92,27 +91,17 @@ export default (client) => {
         if (!msg.hasOwnProperty("set") || !msg.set) msg.set = {};
         if (msg.hasOwnProperty("_id") && typeof msg._id == "string") {
             if (msg._id.length > 512) return;
-            if (!client.staticQuotas.room.attempt()) return;
+            if (!client.quotas.channelChange.isAvailable()) return;
             client.setChannel(msg._id, msg.set);
-            let param;
-            if (client.channel.isLobby(client.channel._id)) {
-                param = quote.N_PARAMS_LOBBY;
-            } else {
-                if (!(client.user._id == client.channel.crown.userId)) {
-                    param = quote.N_PARAMS_NORMAL;
-                } else {
-                    param = quote.N_PARAMS_RIDICULOUS;
-                }
-            }
-            param.m = "nq";
-            client.sendArray([param])
+
+            client.sendArray([{m:"nq",...client.quotas.note.getRaw()}])
 
             client.authenicated = true;
         }
     })
     client.on("m", (msg) => {
         if (!client.authenicated) return;
-        if (!client.quotas.cursor.attempt() && !client.user.flags.get("no mouse rate limit")) return;
+        if (!client.quotas.mouseMove.isAvailable() && !client.user.flags.get("no mouse rate limit")) return;
         if (!(client.channel && client.participantId)) return;
         if (!msg.hasOwnProperty("x")) msg.x = null;
         if (!msg.hasOwnProperty("y")) msg.y = null;
@@ -126,7 +115,7 @@ export default (client) => {
             client.channel.chown(msg.id);
             return;
         }
-        if (!client.quotas.chown.attempt()) return;
+        if (!client.quotas.chown.isAvailable()) return;
 
         //console.log((Date.now() - client.channel.crown.time))
         //console.log(!(client.channel.crown.userId != client.user._id), !((Date.now() - client.channel.crown.time) > 15000));
@@ -136,16 +125,16 @@ export default (client) => {
             if (client.user._id == client.channel.crown.userId || client.channel.crowndropped)
                 client.channel.chown(msg.id);
                 if (msg.id == client.user.id) {
-                    param =  quote.N_PARAMS_RIDICULOUS;
-                    param.m = "nq";
-                    client.sendArray([param])
+                    client.updateQuotaFlags(2);
+
+                    client.sendArray([{m:"nq",...client.quotas.note.getRaw()}])
                 }
         } else {
             if (client.user._id == client.channel.crown.userId || client.channel.crowndropped)
+                client.updateQuotaFlags(0);
                 client.channel.chown();
-                param =  quote.N_PARAMS_NORMAL;
-                param.m = "nq";
-                client.sendArray([param])
+
+                client.sendArray([{m:"nq",...client.quotas.note.getRaw()}])
         }
     })
     client.on("chset", msg => {
@@ -155,30 +144,22 @@ export default (client) => {
         client.channel.settings = msg.set;
         client.channel.updateCh();
     })
+
     client.on("a", (msg, admin) => {
         if (!(client.channel && client.participantId)) return;
         if (!msg.hasOwnProperty('message')) return;
-        if (client.channel.settings.chat) {
-            if (client.channel.isLobby(client.channel._id)) {
-                if (!client.quotas.chat.lobby.attempt() && !client.user.flags.get("no chat rate limit")) return;
-            } else {
-                if (!(client.user._id == client.channel.crown.userId)) {
-                    if (!client.quotas.chat.normal.attempt() && !client.user.flags.get("no chat rate limit")) return;
-                } else {
-                    if (!client.quotas.chat.insane.attempt() && !client.user.flags.get("no chat rate limit")) return;
-                }
-            }
-            client.channel.emit('a', client, msg);
-        }
+        if (!client.channel.settings.chat) return;
+        if (!client.quotas.chat.isAvailable() && !client.user.flags.get("no chat rate limit")) return;
+        client.channel.emit('a', client, msg);
     })
+
     client.on('n', msg => {
         if (!(client.channel && client.participantId)) return;
         if (!msg.hasOwnProperty('t') || !msg.hasOwnProperty('n')) return;
         if (typeof msg.t != 'number' || typeof msg.n != 'object') return;
+        if (!client.quotas.note.isAvailable()) return;
         if (client.channel.settings.crownsolo) {
-            if ((client.channel.crown.userId == client.user._id) && !client.channel.crowndropped) {
-                client.channel.playNote(client, msg);
-            }
+            if ((client.channel.crown.userId == client.user._id) && !client.channel.crowndropped) client.channel.playNote(client, msg);
         } else {
             client.channel.playNote(client, msg);
         }
@@ -189,9 +170,7 @@ export default (client) => {
         let rooms = [];
         for (let room of Array.from(client.server.rooms.values())) {
             let data = room.fetchData().ch;
-            if (room.bans.get(client.user._id)) {
-                data.banned = true;
-            }
+            if (room.bans.get(client.user._id)) data.banned = true;
             if (room.settings.visible) rooms.push(data);
         }
         client.sendArray([{
@@ -209,7 +188,7 @@ export default (client) => {
         if (!msg.hasOwnProperty("set") || !msg.set) msg.set = {};
         if (msg.set.hasOwnProperty('name') && typeof msg.set.name == "string") {
             if (msg.set.name.length > 40) return;
-            if(!client.quotas.userset.attempt()) return;
+            if(!client.quotas.userset.isAvailable()) return;
             client.user.name = msg.set.name;
             let user = new User(client);
             let data = user.getUserData();
@@ -228,12 +207,10 @@ export default (client) => {
         if (!(client.channel && client.participantId)) return;
         if (!client.channel.crown.userId) return;
 
-        if(!client.user.flags.get("chownAnywhere")) {
-            if (!(client.user._id == client.channel.crown.userId)) return;
-        }
+        if(!client.user.flags.get("chownAnywhere")) if (!(client.user._id == client.channel.crown.userId)) return;
 
         if (msg.hasOwnProperty('_id') && typeof msg._id == "string") {
-            if (!client.quotas.kickban.attempt() && !admin) return;
+            if (!client.quotas.kickban.isAvailable() && !admin) return;
             let _id = msg._id;
             let ms = msg.ms || 3600000;
             client.channel.kickban(_id, ms);
@@ -275,7 +252,6 @@ export default (client) => {
     })
 
     client.on("siteban", (msg) => {
-        let validReasons = ["Discrimination","Inappropriate discussion","Sharing inappropriate content","Discussing self-harm","Piano spam in lobbies","Chat spam in lobbies","Evading site-wide punishments","Evading mutes or kickbans","Exploiting bugs","Phishing/IP grabbing","Abusing bots or scripts","Promoting violence/illegal activities","Promoting breaking the rules","Giving other user's personal information","Sending the same message in many rooms","Spamming the piano in many rooms","Holding the crown in someone else's room","Abusing permissions/quotas","Impersonation","Lying about other users"];
         if(!client.user.flags.get("siteBan")) return;
         if(msg.permanent) msg.duration = 3.154e+11;
         if (typeof msg.duration !== 'number') return;
@@ -283,6 +259,8 @@ export default (client) => {
         if (typeof msg.note !== 'string') return;
         if(msg.reason.length == 0) return;
         if (msg.duration > 1000 * 60 * 60 * 24 * 30 && !client.user.flags.get("siteBanAnyDuration")) return;
+        let validReasons = ["Discriminaton","Inappropriate discussion","Sharing inappropriate content","Discussing self-harm","Piano spam in lobbies","Chat spam in lobbies","Evading site-wide punishments","Evading mutes or kickbans","Exploiting bugs","Phishing/IP grabbing","Abusing bots or scripts","Promoting violence/illegal activities","Promoting breaking the rules","Giving other user's personal information","Sending the same message in many rooms","Spamming the piano in many rooms","Holding the crown in someone else's room","Abusing permissions/quotas","Impersonation","Lying about other users"];
+
         if(!validReasons.includes(msg.reason) && !client.user.flags.get("siteBanAnyReason")) return;
         if (!msg.hasOwnProperty('id') && !msg.hasOwnProperty('_id')) return;
 
@@ -421,9 +399,7 @@ export default (client) => {
             client.server.rooms.forEach((room) => {
                 room.connections.forEach(z => {
                     if(msg.targetUser) {
-                        if(z.user._id == msg.targetUser) {
-                            z.sendArray([param])
-                        }
+                        if(z.user._id == msg.targetUser) z.sendArray([param])
                     } else {
                         z.sendArray([param])
                     }
@@ -436,9 +412,7 @@ export default (client) => {
             if(room) {
                 room.connections.forEach(z => {
                     if(msg.targetUser) {
-                        if(z.user._id == msg.targetUser) {
-                            z.sendArray([param])
-                        }
+                        if(z.user._id == msg.targetUser) z.sendArray([param])
                     } else {
                         z.sendArray([param])
                     }

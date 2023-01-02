@@ -1,116 +1,31 @@
-export default class Quota {
-    constructor(params, cb) {
-        this.cb = cb;
-        this.setParams(params);
-        this.resetPoints();
-        this.interval;
-    };
-    static N_PARAMS_LOBBY = {
-        allowance: 200,
-        max: 600,
-        interval: 2000
-    };
-    static N_PARAMS_NORMAL = {
-        allowance: 400,
-        max: 1200,
-        interval: 2000
-    };
-    static N_PARAMS_RIDICULOUS = {
-        allowance: 600,
-        max: 1800,
-        interval: 2000
-    };
-    static PARAMS_OFFLINE = {
-        allowance: 8000,
-        max: 24000,
-        maxHistLen: 3,
-        interval: 2000
-    };
-    static PARAMS_A_NORMAL = {
-        allowance: 4,
-        max: 4,
-        interval: 6000
-    };
-    static PARAMS_A_CROWNED = {
-        allowance:10,
-        max:10,
-        interval: 2000
+export default class NewQuota {
+    constructor(values = []) {
+        this.values = values;
+        this.selected = 0;
+        this.points = 0
+
+        this.interval = setInterval(()=>{
+            let curr = values[this.selected];
+            if(this.points < curr.max) {
+                this.points += curr.allowance;
+                if (this.points > curr.max) this.points =curr.max;
+            }
+        }, values[this.selected].interval)
     }
-    static PARAMS_CH = {
-        allowance: 1,
-        max: 2,
-        interval: 1000
+
+    getRaw() {
+        return this.values[this.selected];
     }
-    static PARAMS_USED_A_LOT = {
-        allowance:1,
-        max:1,
-        interval: 2000
+
+    isAvailable() {
+        if(this.points < 0) return false;
+        this.points -= 1;
+        return true;
     }
-    static PARAMS_M = {
-        allowance:15000,
-        max:500000,
-        interval: 2000
+
+    updateFlags(n) {
+        if(this.values.length <= n) return;
+        this.selected = n;
+        this.points = this.values[this.selected].max;
     }
-    getParams() {
-        return {
-            m: "nq",
-            allowance: this.allowance,
-            max: this.max,
-            maxHistLen: this.maxHistLen
-        };
-    };
-    setParams(params) {
-        params = params || Quota.PARAMS_OFFLINE;
-        var allowance = params.allowance || this.allowance || Quota.PARAMS_OFFLINE.allowance;
-        var max = params.max || this.max || Quota.PARAMS_OFFLINE.max;
-        var maxHistLen = params.maxHistLen || this.maxHistLen || Quota.PARAMS_OFFLINE.maxHistLen;
-        let interval = params.interval || 0;
-	clearInterval(this.interval);
-        this.interval = setInterval(() => {
-            this.tick();
-        }, params.interval)
-        if (allowance !== this.allowance || max !== this.max || maxHistLen !== this.maxHistLen) {
-            this.allowance = allowance;
-            this.max = max;
-            this.maxHistLen = maxHistLen;
-            this.resetPoints();
-            return true;
-        }
-        return false;
-    };
-    resetPoints() {
-        this.points = this.max;
-        this.history = [];
-        for (var i = 0; i < this.maxHistLen; i++)
-            this.history.unshift(this.points);
-        if (this.cb) this.cb(this.points);
-    };
-    tick() {
-        // keep a brief history
-        this.history.unshift(this.points);
-        this.history.length = this.maxHistLen;
-        // hook a brother up with some more quota
-        if (this.points < this.max) {
-            this.points += this.allowance;
-            if (this.points > this.max) this.points = this.max;
-            // fire callback
-            if (this.cb) this.cb(this.points);
-        }
-    };
-    spend(needed) {
-        // check whether aggressive limitation is needed
-        var sum = 0;
-        for (var i in this.history) {
-            sum += this.history[i];
-        }
-        if (sum <= 0) needed *= this.allowance;
-        // can they afford it?  spend
-        if (this.points < needed) {
-            return false;
-        } else {
-            this.points -= needed;
-            if (this.cb) this.cb(this.points); // fire callback
-            return true;
-        }
-    };
 }

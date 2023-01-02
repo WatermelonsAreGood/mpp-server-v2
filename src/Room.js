@@ -36,16 +36,16 @@ class Room extends EventEmitter {
 
             client.user.id = participantId;
             client.participantId = participantId;
-            client.initParticipantQuotas();
 
             if (((this.connections.length == 0 && Array.from(this.ppl.values()).length == 0) && !this.isLobby(this._id)) || this.crown && (this.crown.userId == client.user._id)) { //user that created the room, give them the crown.
-                //client.quotas.a.setParams(Quota.PARAMS_A_CROWNED);
+                client.updateQuotaFlags(2);
+
                 this.crown = new Crown(client.participantId, client.user._id);
                 this.crowndropped = false;
                 this.settings = new RoomSettings(set, 'user');
             } else {
-                //client.quotas.a.setParams(Quota.PARAMS_A_NORMAL);
                 if (this.isLobby(this._id)) {
+                    client.updateQuotaFlags(1);
                     this.settings = new RoomSettings(this.server.defaultLobbySettings, 'user');
                     this.settings.visible = true;
                     this.settings.crownsolo = false;
@@ -53,6 +53,8 @@ class Room extends EventEmitter {
                     this.settings.color2 = this.server.defaultLobbySettings.color2;
                     this.settings.lobby = true;
                 } else {
+                    client.updateQuotaFlags(0);
+
                     if (typeof(set) == 'undefined') {
                         if (typeof(this.settings) == 'undefined') {
                             this.settings = new RoomSettings(this.server.defaultRoomSettings, 'user');
@@ -113,11 +115,7 @@ class Room extends EventEmitter {
                 p: p.participantId
             }], p, false);
 
-            if (this.crown) {
-                if (this.crown.userId == p.user._id && !this.crowndropped) {
-                    this.chown();
-                }
-            }
+            if (this.crown) if (this.crown.userId == p.user._id && !this.crowndropped) this.chown();
 
             this.updateCh();
         } else {
@@ -129,9 +127,7 @@ class Room extends EventEmitter {
         if (Array.from(this.ppl.values()).length <= 0) this.destroy();
         this.connections.forEach((usr) => {
             let racer = this.server.connections.get(usr.connectionid); // Racy race condition! Uh oh!
-            if(racer) {
-                racer.sendArray([this.fetchData(usr, client)])
-            }
+            if(racer) racer.sendArray([this.fetchData(usr, client)])
         })
         this.server.updateRoom(this.fetchData());
     }
@@ -439,9 +435,7 @@ class Room extends EventEmitter {
             if (msg.set.lobby == true) {
                 if (!this.isLobby(_id)) delete msg.set.lobby; // keep it nice and clean
             } else {
-                if (this.isLobby(_id)) {
-                    msg.set = this.server.defaultLobbySettings;
-                }
+                if (this.isLobby(_id)) msg.set = this.server.defaultLobbySettings;
             }
         }
         return msg.set;
