@@ -18,7 +18,6 @@ class Client extends EventEmitter {
         this.staticQuotas = {
             room: new RateLimit(quotas.room.time)
         };
-        this.quotas = quotas;
         this.ws = ws;
         this.req = req;
         if(config.xforwardedtrust) {
@@ -30,6 +29,7 @@ class Client extends EventEmitter {
         this.authenicated = false;
         this.dead = false;
         this.bindEventListeners();
+        this.initParticipantQuotas();
         message(this);
     }
 
