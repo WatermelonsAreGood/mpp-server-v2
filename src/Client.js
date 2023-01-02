@@ -25,46 +25,47 @@ class Client extends EventEmitter {
         this.dead = false;
         this.bindEventListeners();
 
+        message(this);
+    }
+    initializeQuotes() {
         this.quotas = {
-            mouseMove: new NewQuota([{
+            mouseMove: new NewQuota(this, "mouseMove", [{
                 allowance: 15e3,
                 max: 5e5,
                 interval: 2e3
             }]),
-            chown: new NewQuota([{
+            chown: new NewQuota(this, "chown", [{
                 allowance: 1,
                 max: 10,
                 time: 5e3
             }]),
-            chat: new NewQuota([
+            chat: new NewQuota(this, "chat", [
                 {allowance:4,max:4,interval:6e3},
                 {allowance:4,max:4,interval:6e3},
                 {allowance:10,max:10,interval:2e3}
             ]),
-            channelChange: new NewQuota([{
+            channelChange: new NewQuota(this, "channelChange", [{
                 allowance: 1,
                 max: 10,
                 time: 2e3
             }]),
-            userset: new NewQuota([{
+            userset: new NewQuota(this, "userset", [{
                 allowance: 1,
                 max: 30,
                 time: 18e5
             }]),
-            kickban: new NewQuota([{
+            kickban: new NewQuota(this, "kickban", [{
                 allowance: 1,
                 max: 2,
                 time: 1000
             }]),
-            note: new NewQuota([
+            note: new NewQuota(this, "note", [
                 {allowance:400,max:1200,interval:2e3},
                 {allowance:200,max:600,interval:2e3},
                 {allowance:600,max:1800,interval:2e3}
             ]),
         }
-        message(this);
     }
-
     updateQuotaFlags(n) {
         Object.values(this.quotas).forEach(z => {
             z.updateFlags(n);

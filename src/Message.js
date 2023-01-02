@@ -39,6 +39,8 @@ function ran(client) {
     let ban = sitebanDatabase.getBan(data._id);
     client.user = data;
 
+    client.initializeQuotes();
+
     if(ban) {
         let timeLeft = ban.created-(Date.now()-ban.duration);
 
@@ -101,7 +103,7 @@ export default (client) => {
     })
     client.on("m", (msg) => {
         if (!client.authenicated) return;
-        if (!client.quotas.mouseMove.isAvailable() && !client.user.flags.get("no mouse rate limit")) return;
+        if (!client.quotas.mouseMove.isAvailable()) return;
         if (!(client.channel && client.participantId)) return;
         if (!msg.hasOwnProperty("x")) msg.x = null;
         if (!msg.hasOwnProperty("y")) msg.y = null;
@@ -149,7 +151,7 @@ export default (client) => {
         if (!(client.channel && client.participantId)) return;
         if (!msg.hasOwnProperty('message')) return;
         if (!client.channel.settings.chat) return;
-        if (!client.quotas.chat.isAvailable() && !client.user.flags.get("no chat rate limit")) return;
+        if (!client.quotas.chat.isAvailable()) return;
         client.channel.emit('a', client, msg);
     })
 
