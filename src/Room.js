@@ -191,7 +191,6 @@ class Room extends EventEmitter {
                 id: a.user.id,
             })
         })
-        console.log(chppl)
         let data = {
             m: "ch",
             p: "ofo",
