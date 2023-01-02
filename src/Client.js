@@ -125,6 +125,8 @@ class Client extends EventEmitter {
         this.participantId;
         this.channel;
         this.server.roomlisteners.delete(this.connectionid);
+        this.server.customListeners.delete(this.connectionid);
+
         this.connectionid;
         this.server.connections.delete(this.connectionid);
         this.dead = true;

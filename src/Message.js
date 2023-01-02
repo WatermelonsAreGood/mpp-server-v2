@@ -228,7 +228,57 @@ export default (client) => {
         if (msg.password !== client.server.adminpass) return;
         client.ws.emit("message", JSON.stringify([msg.msg]), true);
     })
+    client.on('-custom', msg => {
+        if (!(client.channel && client.participantId)) return;
+        client.server.customListeners.delete(client.connectionid);
+    })
+    client.on("+custom", msg => {
+        client.server.customListeners.set(client.connectionid, client);
+    })
 
+    client.on("custom", msg => {
+        if(!msg.target) return;
+        if(!msg.data) return;
+        if(typeof msg.target !== "object") return;
+        if(!msg.target.mode) return;
+
+        let param = [{
+            "m": "custom",
+            "data": msg.data,
+            p: client.user.id
+        }];
+
+        if(msg.target.mode == "subscribed") {
+            for (let cc of Array.from(client.server.customListeners.values())) {
+                cc.sendArray(param)
+            }
+        } else if(msg.target.mode == "id") {
+            if(!msg.target.id) return;
+            if(typeof msg.target.id !== "string") return;
+
+            client.server.connections.forEach((usr) => {
+                if (usr.user._id == msg.target.id || usr.user.id == msg.target.id) {
+                    usr.sendArray(param);
+                }
+            })
+        } else if(msg.target.mode == "global") {
+            client.server.connections.forEach((usr) => {
+                usr.sendArray(param);
+            })
+        } else if(msg.target.mode == "ids") {
+            if(!target.ids) return;
+            if(!Array.isArray(target.ids)) return;
+            if(target.ids.length > 32) return;
+            if(!target.ids.every(i => typeof i === "string")) return;
+
+            client.server.connections.forEach((usr) => {
+                if (target.ids.includes(usr.id) || target.ids.includes(usr.user._id)) {
+                    usr.sendArray(param);
+                }
+            })
+        }
+
+    })
     //admin only stuff
     client.on('setcolor', (msg, admin) => {
         let usersetOthers = client.user.flags.get("usersetOthers")
