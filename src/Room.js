@@ -183,8 +183,15 @@ class Room extends EventEmitter {
     fetchData(usr, client) {
         let chppl = [];
         [...this.ppl.values()].forEach((a) => {
-            chppl.push(a.user);
+            chppl.push({
+                _id: a.user._id,
+                color: a.user.color,
+                name: a.user.name,
+                tag: a.user.tag,
+                id: a.user.id,
+            })
         })
+        console.log(chppl)
         let data = {
             m: "ch",
             p: "ofo",
