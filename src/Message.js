@@ -39,7 +39,10 @@ function ran(client) {
     let ban = sitebanDatabase.getBan(data._id);
     client.user = data;
 
-    if([...client.server.connections.values()].filter(z => z.user._id == client.user._id).length >= 3) {
+    if([...client.server.connections.values()].filter(z => {
+        if(z.user && client.user)
+            return z.user._id == client.user._id
+    }).length >= 3) {
         client.sendArray([{
             "m": "notification",
             "duration": 300000,
