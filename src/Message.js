@@ -402,6 +402,43 @@ export default (client) => {
             }]);
         })
     })
+    client.on('dm', (msg) => {
+        if (!msg.hasOwnProperty('id') && !msg.hasOwnProperty('_id')) return;
+        if(typeof msg.message !== "string") return;
+        if(msg.message >= 512) return;
+
+        client.server.connections.forEach((usr) => {
+            if ((usr.channel && usr.participantId && usr.user) && (usr.user._id == msg._id || (usr.participantId == msg.id))) {
+                if(usr.channel._id !== client.channel._id) return;
+                console.log("Sender: " + client.user.name +", Reciever: " + usr.user.name)
+
+                let message = {};
+                message.m = "dm";
+                message.t = Date.now();
+                message.a = msg.message;
+                message.sender = {
+                    color: client.user.color,
+                    id: client.participantId,
+                    name: client.user.name,
+                    _id: client.user._id,
+                    tag: client.user.tag
+                };
+                message.recipient = {
+                    color: usr.user.color,
+                    id: usr.participantId,
+                    name: usr.user.name,
+                    _id: usr.user._id,
+                    tag: usr.user.tag
+                };
+
+                client.sendArray([message]);
+                usr.sendArray([message]);
+
+                client.channel.chatmsgs.push(message);
+            }
+        })
+    })
+
     client.on('tag', (msg) => {
         if(!client.user.flags.get('tagging')) return;
 

@@ -83,7 +83,12 @@ class Room extends EventEmitter {
 
             client.sendArray([{
                 m: "c",
-                c: this.chatmsgs.slice(-1 * 32)
+                c: this.chatmsgs.slice(-1 * 32).filter(z => {
+                    if(z.m !== "dm") return true;
+                    if(z.recipient._id == client.user._id) return true;
+                    if(z.sender._id == client.user._id) return true;
+                    return false;
+                })
             }]);
 
             this.updateCh(client, this.settings);
@@ -96,8 +101,13 @@ class Room extends EventEmitter {
 
             client.sendArray([{
                 m: "c",
-                c: this.chatmsgs.slice(-1 * 32)
-            }])
+                c: this.chatmsgs.slice(-1 * 32).filter(z => {
+                    if(z.m !== "dm") return true;
+                    if(z.recipient._id == client.user._id) return true;
+                    if(z.sender._id == client.user._id) return true;
+                    return false;
+                })
+            }]);
 
             this.updateCh(client, this.settings);
         }

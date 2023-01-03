@@ -29,7 +29,7 @@ class Server {
         this.legit_m = ["a", "bye", "hi", "ch", "+ls", "-ls", "m", "n", "devices", "t", "chset", "userset", "chown", "kickban",
             "admin message", "user_flag", "notification", // ADMIN MESSAGE IMPL
             "tag", "clearchat", "setcolor", "setname", "siteban", // Lapiss Managment
-            "custom", "-custom", "+custom"
+            "custom", "-custom", "+custom", "dm"
         ]
         this.welcome_motd = config.motd || "You agree to read this message.";
         this.salt = config.salt || "boppity";

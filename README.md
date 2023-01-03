@@ -15,6 +15,7 @@
 12. Full quota rewrite removing RateLimit/Quota ambiguity
 13. Quote permissions providing granularity
 14. Ported over `custom` capability
+15. Ported over `dm` too, supporting all types of dms and also chathistory for those dms.
 
 ## Flags
 1. chownAnywhere, usersetOthers, siteBan, siteBanAnyDuration
@@ -29,4 +30,4 @@ quotaAlways.note.2 -> Always sets the quota note to be set to Crowned
 quoteBypass.userset -> Disables the quota userset
 
 ## New messages
-tag, clearchat, setcolor, setname, siteban, admin message, custom
+tag, clearchat, setcolor, setname, siteban, admin message, custom, dm
