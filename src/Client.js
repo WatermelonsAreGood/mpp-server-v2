@@ -44,6 +44,9 @@ class Client extends EventEmitter {
                 {allowance:4,max:4,interval:6e3},
                 {allowance:10,max:10,interval:2e3}
             ]),
+            dm: new NewQuota(this, "dm", [
+                {allowance:5,max:5,interval:6e3},
+            ]),
             channelChange: new NewQuota(this, "channelChange", [{
                 allowance: 1,
                 max: 10,

@@ -406,35 +406,45 @@ export default (client) => {
         if (!msg.hasOwnProperty('id') && !msg.hasOwnProperty('_id')) return;
         if(typeof msg.message !== "string") return;
         if(msg.message.length >= 512) return;
+        if (!client.quotas.dm.isAvailable()) return;
 
-        client.server.connections.forEach((usr) => {
-            if ((usr.channel && usr.participantId && usr.user) && (usr.user._id == msg._id || (usr.participantId == msg.id))) {
-                if(usr.channel._id !== client.channel._id) return;
-                let message = {};
-                message.m = "dm";
-                message.t = Date.now();
-                message.a = msg.message;
-                message.sender = {
-                    color: client.user.color,
-                    id: client.participantId,
-                    name: client.user.name,
-                    _id: client.user._id,
-                    tag: client.user.tag
-                };
-                message.recipient = {
-                    color: usr.user.color,
-                    id: usr.participantId,
-                    name: usr.user.name,
-                    _id: usr.user._id,
-                    tag: usr.user.tag
-                };
+        let usr;
 
-                client.sendArray([message]);
-                usr.sendArray([message]);
+        for (const searc of client.server.connections.values()) {
+            if ((searc.channel && searc.participantId && searc.user) && (searc.user._id == msg._id || (searc.participantId == msg.id))) {
+                if(searc.channel._id !== client.channel._id) continue;
 
-                client.channel.chatmsgs.push(message);
+                usr = searc;
+                break;
             }
-        })
+        }
+
+        if(!usr) return;
+
+        let message = {
+            m: "dm",
+            t: Date.now(),
+            a: msg.message,
+            sender: {
+                color: client.user.color,
+                id: client.participantId,
+                name: client.user.name,
+                _id: client.user._id,
+                tag: client.user.tag
+            },
+            recipient: {
+                color: usr.user.color,
+                id: usr.participantId,
+                name: usr.user.name,
+                _id: usr.user._id,
+                tag: usr.user.tag
+            }
+        };
+
+        client.sendArray([message]);
+        usr.sendArray([message]);
+
+        client.channel.chatmsgs.push(message);
     })
 
     client.on('tag', (msg) => {
