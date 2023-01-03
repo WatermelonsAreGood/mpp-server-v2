@@ -39,6 +39,20 @@ function ran(client) {
     let ban = sitebanDatabase.getBan(data._id);
     client.user = data;
 
+    if([...client.server.connections.values()].filter(z => z.user._id == client.user._id).length >= 3) {
+        client.sendArray([{
+            "m": "notification",
+            "duration": 300000,
+            "id": "overUseNotification",
+            "target": "#piano",
+            "class": "classic",
+            "title": "You are using too many clients!",
+            "text": `${client.user._id} has allocated ≥3 clients!`
+        }])
+        client.destroy();
+        return;
+    }
+
     client.initializeQuotes();
 
     if(ban) {
