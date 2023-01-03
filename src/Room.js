@@ -37,6 +37,8 @@ class Room extends EventEmitter {
             client.user.id = participantId;
             client.participantId = participantId;
 
+            client.initpQuotas();
+            client.init_idQuotas();
             if (((this.connections.length == 0 && Array.from(this.ppl.values()).length == 0) && !this.isLobby(this._id)) || this.crown && (this.crown.userId == client.user._id)) { //user that created the room, give them the crown.
                 client.updateQuotaFlags(2);
 
@@ -95,7 +97,13 @@ class Room extends EventEmitter {
         } else {
             client.user.id = otheruser.participantId;
             client.participantId = otheruser.participantId;
-            client.quotas = otheruser.quotas;
+            client._idQuotas = otheruser._idQuotas;
+
+            if(otheruser.channel._id !== client.channel._id) {
+                client.initpQuotas();
+            } else {
+                client.pQuotas = otheruser.pQuotas;
+            }
 
             this.connections.push(client);
 

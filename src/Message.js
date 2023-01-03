@@ -56,8 +56,6 @@ function ran(client) {
         return;
     }
 
-    client.initializeQuotes();
-
     if(ban) {
         let timeLeft = ban.created-(Date.now()-ban.duration);
 
@@ -110,17 +108,23 @@ export default (client) => {
         if (!msg.hasOwnProperty("set") || !msg.set) msg.set = {};
         if (msg.hasOwnProperty("_id") && typeof msg._id == "string") {
             if (msg._id.length > 512) return;
-            if (!client.quotas.channelChange.isAvailable()) return;
+
+            if(client.channel) { // We can only charge a quota when not joining for the first time.
+                if(client._idQuotas) {
+                    if (!client._idQuotas.channelChange.isAvailable()) return;
+                }
+            }
+
             client.setChannel(msg._id, msg.set);
 
-            client.sendArray([{m:"nq",...client.quotas.note.getRaw()}])
+            client.sendArray([{m:"nq",...client.pQuotas.note.getRaw()}])
 
             client.authenicated = true;
         }
     })
     client.on("m", (msg) => {
         if (!client.authenicated) return;
-        if (!client.quotas.mouseMove.isAvailable()) return;
+        if (!client.pQuotas.mouseMove.isAvailable()) return;
         if (!(client.channel && client.participantId)) return;
         if (!msg.hasOwnProperty("x")) msg.x = null;
         if (!msg.hasOwnProperty("y")) msg.y = null;
@@ -134,7 +138,7 @@ export default (client) => {
             client.channel.chown(msg.id);
             return;
         }
-        if (!client.quotas.chown.isAvailable()) return;
+        if (!client.pQuotas.chown.isAvailable()) return;
 
         //console.log((Date.now() - client.channel.crown.time))
         //console.log(!(client.channel.crown.userId != client.user._id), !((Date.now() - client.channel.crown.time) > 15000));
@@ -146,14 +150,14 @@ export default (client) => {
                 if (msg.id == client.user.id) {
                     client.updateQuotaFlags(2);
 
-                    client.sendArray([{m:"nq",...client.quotas.note.getRaw()}])
+                    client.sendArray([{m:"nq",...client.pQuotas.note.getRaw()}])
                 }
         } else {
             if (client.user._id == client.channel.crown.userId || client.channel.crowndropped)
                 client.updateQuotaFlags(0);
                 client.channel.chown();
 
-                client.sendArray([{m:"nq",...client.quotas.note.getRaw()}])
+                client.sendArray([{m:"nq",...client.pQuotas.note.getRaw()}])
         }
     })
     client.on("chset", msg => {
@@ -168,7 +172,7 @@ export default (client) => {
         if (!(client.channel && client.participantId)) return;
         if (!msg.hasOwnProperty('message')) return;
         if (!client.channel.settings.chat) return;
-        if (!client.quotas.chat.isAvailable()) return;
+        if (!client.pQuotas.chat.isAvailable()) return;
         client.channel.emit('a', client, msg);
     })
 
@@ -176,7 +180,7 @@ export default (client) => {
         if (!(client.channel && client.participantId)) return;
         if (!msg.hasOwnProperty('t') || !msg.hasOwnProperty('n')) return;
         if (typeof msg.t != 'number' || typeof msg.n != 'object') return;
-        if (!client.quotas.note.isAvailable()) return;
+        if (!client.pQuotas.note.isAvailable()) return;
         if (client.channel.settings.crownsolo) {
             if ((client.channel.crown.userId == client.user._id) && !client.channel.crowndropped) client.channel.playNote(client, msg);
         } else {
@@ -207,7 +211,7 @@ export default (client) => {
         if (!msg.hasOwnProperty("set") || !msg.set) msg.set = {};
         if (msg.set.hasOwnProperty('name') && typeof msg.set.name == "string") {
             if (msg.set.name.length > 40) return;
-            if(!client.quotas.userset.isAvailable()) return;
+            if(!client._idQuotas.userset.isAvailable()) return;
             client.user.name = msg.set.name;
             let user = new User(client);
             let data = user.getUserData();
@@ -229,7 +233,7 @@ export default (client) => {
         if(!client.user.flags.get("chownAnywhere")) if (!(client.user._id == client.channel.crown.userId)) return;
 
         if (msg.hasOwnProperty('_id') && typeof msg._id == "string") {
-            if (!client.quotas.kickban.isAvailable() && !admin) return;
+            if (!client.pQuotas.kickban.isAvailable() && !admin) return;
             let _id = msg._id;
             let ms = msg.ms || 3600000;
             client.channel.kickban(_id, ms);
@@ -423,7 +427,7 @@ export default (client) => {
         if (!msg.hasOwnProperty('id') && !msg.hasOwnProperty('_id')) return;
         if(typeof msg.message !== "string") return;
         if(msg.message.length >= 512) return;
-        if (!client.quotas.dm.isAvailable()) return;
+        if (!client.pQuotas.dm.isAvailable()) return;
 
         let usr;
 

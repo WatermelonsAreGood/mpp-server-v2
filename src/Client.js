@@ -27,8 +27,23 @@ class Client extends EventEmitter {
 
         message(this);
     }
-    initializeQuotes() {
-        this.quotas = {
+
+    init_idQuotas() {
+        this._idQuotas = {
+            channelChange: new NewQuota(this, "channelChange", [{
+                allowance: 1,
+                max: 10,
+                time: 2e3
+            }]),
+            userset: new NewQuota(this, "userset", [{
+                allowance: 1,
+                max: 30,
+                time: 18e5
+            }])
+        }
+    }
+    initpQuotas() {
+        this.pQuotas = {
             mouseMove: new NewQuota(this, "mouseMove", [{
                 allowance: 15e3,
                 max: 5e5,
@@ -47,16 +62,6 @@ class Client extends EventEmitter {
             dm: new NewQuota(this, "dm", [
                 {allowance:5,max:5,interval:6e3},
             ]),
-            channelChange: new NewQuota(this, "channelChange", [{
-                allowance: 1,
-                max: 10,
-                time: 2e3
-            }]),
-            userset: new NewQuota(this, "userset", [{
-                allowance: 1,
-                max: 30,
-                time: 18e5
-            }]),
             kickban: new NewQuota(this, "kickban", [{
                 allowance: 1,
                 max: 2,
@@ -70,7 +75,7 @@ class Client extends EventEmitter {
         }
     }
     updateQuotaFlags(n) {
-        Object.values(this.quotas).forEach(z => {
+        Object.values(this.pQuotas).forEach(z => {
             z.updateFlags(n);
         })
     }
