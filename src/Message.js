@@ -405,7 +405,7 @@ export default (client) => {
     client.on('dm', (msg) => {
         if (!msg.hasOwnProperty('id') && !msg.hasOwnProperty('_id')) return;
         if(typeof msg.message !== "string") return;
-        if(msg.message >= 512) return;
+        if(msg.message.length >= 512) return;
 
         client.server.connections.forEach((usr) => {
             if ((usr.channel && usr.participantId && usr.user) && (usr.user._id == msg._id || (usr.participantId == msg.id))) {

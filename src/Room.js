@@ -29,7 +29,7 @@ class Room extends EventEmitter {
         this.bans = new Map();
     }
 
-    join(client, set) { //this stuff is complicated
+    join(client) { //this stuff is complicated
         let otheruser = this.connections.find((a) => a.user._id == client.user._id)
         if (!otheruser) {
             let participantId = createHash('sha512').update(Math.random().toString() + client.ip).digest('hex').slice(0, 24);
@@ -42,7 +42,7 @@ class Room extends EventEmitter {
 
                 this.crown = new Crown(client.participantId, client.user._id);
                 this.crowndropped = false;
-                this.settings = new RoomSettings(set, 'user');
+                this.settings = new RoomSettings(this.settings, 'user');
             } else {
                 if (this.isLobby(this._id)) {
                     client.updateQuotaFlags(1);
@@ -55,14 +55,14 @@ class Room extends EventEmitter {
                 } else {
                     client.updateQuotaFlags(0);
 
-                    if (typeof(set) == 'undefined') {
+                    if (typeof(this.settings) == 'undefined') {
                         if (typeof(this.settings) == 'undefined') {
                             this.settings = new RoomSettings(this.server.defaultRoomSettings, 'user');
                         } else {
-                            this.settings = new RoomSettings(client.channel.settings, 'user');
+                            this.settings = new RoomSettings(this.settings, 'user');
                         }
                     } else {
-                        this.settings = new RoomSettings(set, 'user');
+                        this.settings = new RoomSettings(this.settings, 'user');
                     }
                 }
             }
@@ -454,6 +454,7 @@ class Room extends EventEmitter {
                 if (this.isLobby(_id)) msg.set = this.server.defaultLobbySettings;
             }
         }
+
         return msg.set;
     }
 
