@@ -27,7 +27,7 @@ quotaAlways.*.* and quotaBypass.*
 ### Example:
 quotaAlways.note.2 -> Always sets the quota note to be set to Crowned
 
-quoteBypass.userset -> Disables the quota userset
+quotaBypass.userset -> Disables the quota userset
 
 ## New messages
 tag, clearchat, setcolor, setname, siteban, admin message, custom, dm
