@@ -410,8 +410,6 @@ export default (client) => {
         client.server.connections.forEach((usr) => {
             if ((usr.channel && usr.participantId && usr.user) && (usr.user._id == msg._id || (usr.participantId == msg.id))) {
                 if(usr.channel._id !== client.channel._id) return;
-                console.log("Sender: " + client.user.name +", Reciever: " + usr.user.name)
-
                 let message = {};
                 message.m = "dm";
                 message.t = Date.now();
