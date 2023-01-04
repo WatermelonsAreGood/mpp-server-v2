@@ -26,6 +26,7 @@ export default class NewQuota {
     }
 
     getRaw() {
+        console.log("recv getraw byp: " + this.bypassed)
         if(this.bypassed) {
             return {
                 allowance: 99999,

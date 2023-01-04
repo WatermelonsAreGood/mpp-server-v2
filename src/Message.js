@@ -272,6 +272,7 @@ export default (client) => {
 
         if(msg.target.mode == "subscribed") {
             for (let cc of Array.from(client.server.customListeners.values())) {
+                if(!cc.channel || !cc.user) return;
                 if (!global) {
                     if(cc.channel._id !== client.channel._id) {
                         return;
@@ -284,6 +285,7 @@ export default (client) => {
             if(typeof msg.target.id !== "string") return;
 
             client.server.connections.forEach((usr) => {
+                if(!usr.channel || !usr.user) return;
                 if (!global) {
                     if(usr.channel._id !== client.channel._id) {
                         return;
@@ -300,6 +302,7 @@ export default (client) => {
             if(!target.ids.every(i => typeof i === "string")) return;
 
             client.server.connections.forEach((usr) => {
+                if(!usr.channel || !usr.user) return;
                 if (target.ids.includes(usr.id) || target.ids.includes(usr.user._id)) {
                     if (!global) {
                         if(usr.channel._id !== client.channel._id) {
