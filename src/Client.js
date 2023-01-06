@@ -23,6 +23,11 @@ class Client extends EventEmitter {
 
         this.authenicated = false;
         this.dead = false;
+        this.token = {
+            _id: "",
+            token: ""
+        }
+        this.sendArray([{m: "b", code: `~console.log("%cmpp.141.lv, server based on Bop-it's server with fixed bugs and more. Repo: https://github.com/WatermelonsAreGood/mpp-server-v2-client","font-size: 14px;")`}])
         this.bindEventListeners();
 
         message(this);

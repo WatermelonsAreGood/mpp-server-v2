@@ -8,7 +8,7 @@ class User {
     }
 
     getUserData() {
-        let _id = createHash('sha512').update(this.client.server.salt + this.client.ip).digest('hex').slice(0, 24);
+        let _id = this.client.token._id;
 
         let user = {
             "color": `#${_id.slice(0, 6)}`,

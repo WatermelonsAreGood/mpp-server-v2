@@ -1,8 +1,8 @@
-import { sitebanDatabase } from "./Database.js";
+import { sitebanDatabase, tokenDatabase } from "./Database.js";
 
 import User from "./User.js";
 
-function ms(t) {
+function formatTime(t) {
     let year,
         month,
         day,
@@ -23,78 +23,100 @@ function ms(t) {
     month = month % 12;
 
     let timeS = "";
-    timeS += `${year ? year + "years, " : ""}${month ? month + "months, " : ""}${day ? day + "days, " : ""}`
+    timeS += `${year ? year + " years, " : ""}${month ? month + " months, " : ""}${day ? day + " days, " : ""}`
     timeS += `${hour} hours, ${minute} minutes, ${second} seconds`
 
     return timeS;
 }
 
-function ran(client) {
-    if(client.authenicated) return;
+export default (client) => {
+    client.on("hi", (msg) => {
+        if(client.authenicated) return;
 
-    client.welcoming = true;
+        let matched = false;
 
-    let user = new User(client);
-    const data = user.getUserData();
-    let ban = sitebanDatabase.getBan(data._id);
-    client.user = data;
+        if (msg.token) {
+            if (tokenDatabase.getToken(msg.token)) {
+                client.token._id = tokenDatabase.getToken(msg.token)._id;
+                client.token.token = msg.token;
+                matched = true;
+            }
+        }
 
-    if([...client.server.connections.values()].filter(z => {
-        if(z.user && client.user)
-            return z.user._id == client.user._id
-    }).length >= 3) {
-        client.sendArray([{
-            "m": "notification",
-            "duration": 300000,
-            "id": "overUseNotification",
-            "target": "#piano",
-            "class": "classic",
-            "title": "You are using too many clients!",
-            "text": `${client.user._id} has allocated ≥3 clients!`
-        }])
-        client.destroy();
-        return;
-    }
+        if (!matched) {
+            client.token.token = tokenDatabase.generateToken(client.ip);
 
-    if(ban) {
-        let timeLeft = ban.created-(Date.now()-ban.duration);
+            if (tokenDatabase.getToken(client.token.token)) {
+                client.token._id = tokenDatabase.getToken(client.token.token)._id;
+            } else {
+                client.token._id = tokenDatabase.generateID();
+            }
 
-        if(timeLeft < 0) {
-            sitebanDatabase.unban(data._id);
+            tokenDatabase.setToken(client.token.token, client.token._id);
+        }
+
+        let user = new User(client);
+        const data = user.getUserData();
+        let ban = sitebanDatabase.getBan(data._id);
+        client.user = data;
+
+        if([...client.server.connections.values()].filter(z => {
+            if(z.user && client.user)
+                return z.user._id == client.user._id
+        }).length >= 3) {
+            client.sendArray([{
+                "m": "notification",
+                "duration": 300000,
+                "id": "overUseNotification",
+                "target": "#piano",
+                "class": "classic",
+                "title": "You are using too many clients!",
+                "text": `${client.user._id} has allocated ≥3 clients!`
+            }])
+            client.destroy();
             return;
         }
 
-        client.sendArray([{
-            "m": "notification",
-            "duration": 300000,
-            "id": "banNotification",
-            "target": "#piano",
-            "class": "classic",
-            "title": "You've been banned.",
-            "text": `You were banned. Time left: ${ms(timeLeft)}. Reason: ${ban.reason}. Contact a staff member to get unbanned.`
-        }])
-        client.destroy();
-        return;
-    }
+        if(ban) {
+            let timeLeft = ban.created-(Date.now()-ban.duration);
 
-    let msg = [{
-        m: "hi",
-        motd: client.server.welcome_motd,
-        t: Date.now(),
-        u: data,
-        v: "heavily modded bopit-server, with permissions, tags, proper chowning, room settings and admin tools!",
-        permissions: {}
-    }];
+            if(timeLeft < 0) {
+                sitebanDatabase.unban(data._id);
+                return;
+            }
 
-    [...data.flags].map(z=>msg[0].permissions[z[0]]=z[1])
+            client.sendArray([{
+                "m": "notification",
+                "duration": 300000,
+                "id": "banNotification",
+                "target": "#piano",
+                "class": "classic",
+                "title": "You've been banned.",
+                "text": `You were banned. Time left: ${formatTime(timeLeft)}. Reason: ${ban.reason}. Contact a staff member to get unbanned.`
+            }])
+            client.destroy();
+            return;
+        }
 
-    client.sendArray(msg)
-    client.user = data;
-}
+        let params = [{
+            m: "hi",
+            motd: client.server.welcome_motd,
+            t: Date.now(),
+            u: {
+                color: data.color,
+                name: data.name,
+                _id: data._id
+            },
+            v: "heavily modded bopit-server, with permissions, tags, proper chowning, room settings and admin tools!",
+            permissions: {},
+            token: client.token.token
+        }];
 
-export default (client) => {
-    client.on("hi", () => ran(client));
-    client.on("devices", () => ran(client));
+        [...data.flags].map(z=>params[0].permissions[z[0]]=z[1])
+
+        client.sendArray(params)
+        client.user = data;
+    });
 
     client.on("t", msg => {
         if (msg.hasOwnProperty("e") && !isNaN(msg.e))

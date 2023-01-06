@@ -1,4 +1,6 @@
 import bsql from 'better-sqlite3';
+import {createHash } from "node:crypto";
+import config from "../config.js"
 
 class UserDatabase {
     constructor() {
@@ -60,5 +62,47 @@ class SitebanDatabase {
     }
 }
 
+class TokenDatabase {
+    constructor() {
+        this.sql = bsql('tokens.db'); // TODO: these all have to be merged. please
+        this.sql.exec("CREATE TABLE IF NOT EXISTS tokens ( token TEXT PRIMARY KEY, _id TEXT)")
+    }
+
+    getID(_id) {
+        let question = this.sql.prepare('SELECT * FROM tokens WHERE _id = ?').get(_id);
+        return question;
+    }
+
+    getToken(token) {
+        let question = this.sql.prepare('SELECT * FROM tokens WHERE token = ?').get(token);
+        return question;
+    }
+
+    generateToken(ip) {
+        return createHash('sha512').update(config.salt + ip).digest('hex');
+    }
+
+    generateID() {
+        let id = [...Array(24)].map(() =>
+          Math.floor(Math.random() * 16).toString(16)
+        ).join("");
+
+        while (this.getID(id)) {
+          id = [...Array(24)].map(() => Math.floor(Math.random() * 16).toString(16))
+            .join("");
+        }
+
+        return id;
+    }
+    setToken(token, _id) {
+        if(this.getToken(token)) {
+            this.sql.prepare("UPDATE tokens SET token = ? WHERE _id = ?").run(token, _id);
+        } else {
+            this.sql.prepare("INSERT INTO tokens VALUES (?, ?)").run(token, _id);
+        }
+    }
+}
+
 export const userDatabase = new UserDatabase();
 export const sitebanDatabase = new SitebanDatabase();
+export const tokenDatabase = new TokenDatabase();
