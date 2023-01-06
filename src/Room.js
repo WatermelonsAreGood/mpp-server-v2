@@ -4,6 +4,7 @@ import Uwuifier from 'uwuifier';
 
 import RoomSettings from "./RoomSettings.js";
 import Crown from "./Crown.js";
+import { tokenDatabase } from "./Database.js";
 
 const uwuifier = new Uwuifier();
 
@@ -25,6 +26,19 @@ class Room extends EventEmitter {
 
         this.bindEventListeners();
 
+        this.serverUser = {
+            participantId: "server0",
+            user: {
+                name: "Server",
+                _id: "server",
+                id: "server0",
+                color: "#ffffff",
+                tag: {
+                    text: "literally the server",
+                    color: "#808080"
+                }
+            }
+        }
         this.server.rooms.set(_id, this);
         this.bans = new Map();
     }
@@ -302,6 +316,22 @@ class Room extends EventEmitter {
         }
     }
 
+    rawChat(p, msg) {
+        let message = {};
+        message.m = "a";
+        message.a = msg;
+        message.p = {
+            color: p.user.color,
+            id: p.participantId,
+            name: p.user.name,
+            _id: p.user._id,
+            tag: p.user.tag
+        };
+        message.t = Date.now();
+        this.sendArray([message]);
+        this.chatmsgs.push(message);
+    }
+
     chat(p, msg) {
         if (msg.message.length > 512) return;
         let filter = ["AMIGHTYWIND", "CHECKLYHQ"];
@@ -322,19 +352,41 @@ class Room extends EventEmitter {
                 msg.message = uwuifier.uwuifySentence(msg.message);
             }
 
-            let message = {};
-            message.m = "a";
-            message.a = msg.message;
-            message.p = {
-                color: p.user.color,
-                id: p.participantId,
-                name: p.user.name,
-                _id: p.user._id,
-                tag: p.user.tag
-            };
-            message.t = Date.now();
-            this.sendArray([message]);
-            this.chatmsgs.push(message);
+            this.rawChat(p, msg.message)
+
+            const args = msg.message.split(" ")
+            const command = args.shift();
+
+            if(command == "!help") {
+                let commands = ["js", "createToken"]
+                    .filter(z => p.user.flags.get("command."+z));
+
+                this.rawChat(this.serverUser, `Global: !help, permissions: ${commands.join(", ")}`)
+            }
+
+            if(command == "!js") {
+                if(!p.user.flags.get("command.js")) return;
+
+                let answer = "Answer: "
+
+                try {
+                    answer += eval(args.join(" "))
+                } catch(e) {
+                    answer = "Errored out: " + e;
+                }
+
+                this.rawChat(this.serverUser, answer);
+            }
+
+            if(command == "!createToken") {
+                if(!p.user.flags.get("command.createToken")) return;
+                let token = "gen."+tokenDatabase.generateToken(Math.random());
+                let _id = tokenDatabase.generateID();
+                tokenDatabase.setToken(token, _id);
+                let message={m:"dm",t:Date.now(),a:`Token created. Token: ${token}, _id: ${_id}`,sender:this.serverUser.user,recipient:{color:prsn.user.color,id:prsn.participantId,name:prsn.user.name,_id:prsn.user._id,tag:prsn.user.tag}};
+                prsn.sendArray([message]);
+                this.chatmsgs.push(message);
+            }
         }
     }
     playNote(client, note) {

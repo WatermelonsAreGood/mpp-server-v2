@@ -16,6 +16,8 @@
 13. Quote permissions providing granularity
 14. Ported over `custom` capability
 15. Ported over `dm` too, supporting all types of dms and also chathistory for those dms.
+16. Full token support
+17. !js and !createToken, allowing for interacting with the server through the chat.
 
 ## Flags
 1. chownAnywhere, usersetOthers, siteBan, siteBanAnyDuration
@@ -23,11 +25,17 @@
 3. chat_curse_1, chat_curse_2, chat_curse_3
 
 ### Permission Flags
-quotaAlways.*.* and quotaBypass.*
+1. quotaAlways.*.*
+2. quotaBypass.*
+3. command.*
+
 ### Example:
+
 quotaAlways.note.2 -> Always sets the quota note to be set to Crowned
 
 quotaBypass.userset -> Disables the quota userset
+
+command.js -> Allows the user to use the !js command
 
 ## New messages
 tag, clearchat, setcolor, setname, siteban, admin message, custom, dm

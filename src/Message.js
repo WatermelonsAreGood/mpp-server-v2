@@ -193,6 +193,7 @@ export default (client) => {
     client.on("a", (msg, admin) => {
         if (!(client.channel && client.participantId)) return;
         if (!msg.hasOwnProperty('message')) return;
+        if(typeof msg.message !== "string") return;
         if (!client.channel.settings.chat) return;
         if (!client.pQuotas.chat.isAvailable()) return;
         client.channel.emit('a', client, msg);
