@@ -37,10 +37,10 @@ export default class NewQuota {
         return this.values[this.selected];
     }
 
-    isAvailable() {
+    isAvailable(amount = 1) {
         if(this.bypassed) return this.bypassed;
         if(this.points < 0) return false;
-        this.points -= 1;
+        this.points -= amount;
         return true;
     }
 

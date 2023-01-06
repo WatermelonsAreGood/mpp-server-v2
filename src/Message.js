@@ -203,7 +203,9 @@ export default (client) => {
         if (!(client.channel && client.participantId)) return;
         if (!msg.hasOwnProperty('t') || !msg.hasOwnProperty('n')) return;
         if (typeof msg.t != 'number' || typeof msg.n != 'object') return;
-        if (!client.pQuotas.note.isAvailable()) return;
+
+        if (!client.pQuotas.note.isAvailable(m.n.length)) return;
+
         if (client.channel.settings.crownsolo) {
             if ((client.channel.crown.userId == client.user._id) && !client.channel.crowndropped) client.channel.playNote(client, msg);
         } else {
